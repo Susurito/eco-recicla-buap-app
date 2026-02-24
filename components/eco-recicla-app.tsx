@@ -2,28 +2,35 @@
 
 import { useState, useCallback } from "react"
 import dynamic from "next/dynamic"
+import Link from "next/link"
 import {
   type TrashPoint,
   type PolygonArea,
   initialTrashPoints,
   studentData,
 } from "@/lib/data"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import StudentDashboard from "@/components/student-dashboard"
-import AdminDashboard from "@/components/admin-dashboard"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import TrashPointPanel from "@/components/trash-point-panel"
 import {
   Leaf,
-  Map,
   LayoutDashboard,
   Star,
   Shield,
   Menu,
   X,
   MapPin,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Pentagon,
+  CheckCircle,
+  Clock,
+  Globe,
+  Phone,
+  ExternalLink,
 } from "lucide-react"
 
 const MapView = dynamic(() => import("@/components/map-view"), {
@@ -40,7 +47,6 @@ const MapView = dynamic(() => import("@/components/map-view"), {
 
 export default function EcoReciclaBUAP() {
   const [isAdmin, setIsAdmin] = useState(false)
-  const [activeTab, setActiveTab] = useState<string>("map")
   const [trashPoints, setTrashPoints] =
     useState<TrashPoint[]>(initialTrashPoints)
   const [selectedPoint, setSelectedPoint] = useState<TrashPoint | null>(null)
@@ -50,10 +56,11 @@ export default function EcoReciclaBUAP() {
   const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([])
   const [student, setStudent] = useState(studentData)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const handlePointClick = useCallback((point: TrashPoint) => {
     setSelectedPoint(point)
-    setActiveTab("map")
+    setSidebarCollapsed(false)
   }, [])
 
   const handleClosePanel = useCallback(() => {
@@ -183,104 +190,129 @@ export default function EcoReciclaBUAP() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[380px] flex-col border-r bg-card shadow-lg transition-transform duration-300 md:relative md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r bg-card shadow-lg transition-all duration-300 ease-in-out md:relative ${
+          sidebarCollapsed ? "w-0 md:w-0 overflow-hidden border-r-0" : "w-[380px]"
+        } ${
           mobileMenuOpen
             ? "translate-x-0 pt-14"
-            : "-translate-x-full pt-14 md:pt-0"
+            : "-translate-x-full pt-14 md:translate-x-0 md:pt-0"
         }`}
       >
-        {/* Sidebar header - desktop */}
-        <div className="hidden flex-col gap-3 border-b p-4 md:flex">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Leaf className="h-5 w-5" />
-              </div>
-              <div>
-                <h1 className="text-base font-bold text-foreground leading-tight">
-                  Eco-Recicla BUAP
-                </h1>
-                <p className="text-xs text-muted-foreground">
-                  Facultad de Computacion
-                </p>
-              </div>
-            </div>
+        <div className="flex min-w-[380px] flex-col h-full">
+          {/* Reference image at top - like Google Maps place photo */}
+          <div className="relative h-48 w-full shrink-0 overflow-hidden">
+            <img
+              src="/images/referencia.jpg"
+              alt="Facultad de Cultura Fisica BUAP - Vista de referencia"
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
           </div>
-          {/* Role toggle */}
-          <div className="flex items-center justify-between rounded-lg bg-muted/50 p-2">
-            <div className="flex items-center gap-2">
-              {isAdmin ? (
-                <Shield className="h-4 w-4 text-primary" />
-              ) : (
-                <Star className="h-4 w-4 text-primary" />
-              )}
-              <span className="text-sm font-medium text-foreground">
-                {isAdmin ? "Administrador" : "Estudiante"}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">
-                {isAdmin ? "Admin" : "Demo"}
-              </span>
-              <Switch checked={isAdmin} onCheckedChange={handleRoleToggle} />
-            </div>
-          </div>
-          {/* Eco-Points for student */}
-          {!isAdmin && (
-            <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 p-2">
+
+          {/* Location info (like Google Maps) */}
+          <div className="flex flex-col gap-1 border-b px-4 py-3">
+            <h1 className="text-lg font-bold text-foreground leading-tight">
+              Eco-Recicla BUAP
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Facultad de Computacion
+            </p>
+
+            {/* Role toggle */}
+            <div className="mt-2 flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
               <div className="flex items-center gap-2">
-                <Star className="h-4 w-4 text-primary" />
+                {isAdmin ? (
+                  <Shield className="h-4 w-4 text-primary" />
+                ) : (
+                  <Star className="h-4 w-4 text-primary" />
+                )}
                 <span className="text-sm font-medium text-foreground">
-                  Eco-Points
+                  {isAdmin ? "Administrador" : "Estudiante"}
                 </span>
               </div>
-              <span className="text-lg font-bold text-primary">
-                {student.ecoPoints.toLocaleString()}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {isAdmin ? "Admin" : "Demo"}
+                </span>
+                <Switch checked={isAdmin} onCheckedChange={handleRoleToggle} />
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Tabs */}
-        <Tabs
-          value={selectedPoint ? "map" : activeTab}
-          onValueChange={(val) => {
-            setActiveTab(val)
-            if (val !== "map") setSelectedPoint(null)
-          }}
-          className="flex flex-1 flex-col overflow-hidden"
-        >
-          <div className="border-b px-4 pt-2">
-            <TabsList className="w-full">
-              <TabsTrigger value="dashboard" className="flex-1 gap-1.5">
-                <LayoutDashboard className="h-3.5 w-3.5" />
-                Dashboard
-              </TabsTrigger>
-              <TabsTrigger value="map" className="flex-1 gap-1.5">
-                <Map className="h-3.5 w-3.5" />
-                Mapa
-              </TabsTrigger>
-            </TabsList>
+            {/* Eco-Points for student */}
+            {!isAdmin && (
+              <div className="mt-1 flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <Star className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">
+                    Eco-Points
+                  </span>
+                </div>
+                <span className="text-lg font-bold text-primary">
+                  {student.ecoPoints.toLocaleString()}
+                </span>
+              </div>
+            )}
           </div>
 
-          <TabsContent
-            value="dashboard"
-            className="mt-0 flex-1 overflow-hidden"
-          >
-            {isAdmin ? (
-              <AdminDashboard
-                trashPoints={trashPoints}
-                onAddPoint={handleAddPoint}
-                onDrawPolygon={handleDrawPolygon}
-                isAddingPoint={isAddingPoint}
-                isDrawingPolygon={isDrawingPolygon}
-              />
-            ) : (
-              <StudentDashboard student={student} />
+          {/* Action buttons row like Google Maps */}
+          <div className="flex items-center justify-around border-b px-4 py-3">
+            <Link
+              href="/dashboard"
+              className="flex flex-col items-center gap-1.5 group"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors group-hover:bg-primary/90">
+                <LayoutDashboard className="h-5 w-5" />
+              </div>
+              <span className="text-xs font-medium text-primary">
+                Dashboard
+              </span>
+            </Link>
+            {isAdmin && (
+              <>
+                <button
+                  onClick={handleAddPoint}
+                  className="flex flex-col items-center gap-1.5 group"
+                >
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                    isAddingPoint
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-secondary-foreground group-hover:bg-secondary/80"
+                  }`}>
+                    {isAddingPoint ? (
+                      <CheckCircle className="h-5 w-5" />
+                    ) : (
+                      <Plus className="h-5 w-5" />
+                    )}
+                  </div>
+                  <span className="text-xs font-medium text-foreground">
+                    {isAddingPoint ? "Colocando" : "Agregar"}
+                  </span>
+                </button>
+                <button
+                  onClick={handleDrawPolygon}
+                  className="flex flex-col items-center gap-1.5 group"
+                >
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                    isDrawingPolygon
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-secondary-foreground group-hover:bg-secondary/80"
+                  }`}>
+                    {isDrawingPolygon ? (
+                      <CheckCircle className="h-5 w-5" />
+                    ) : (
+                      <Pentagon className="h-5 w-5" />
+                    )}
+                  </div>
+                  <span className="text-xs font-medium text-foreground">
+                    {isDrawingPolygon ? "Dibujando" : "Area"}
+                  </span>
+                </button>
+              </>
             )}
-          </TabsContent>
+          </div>
 
-          <TabsContent value="map" className="mt-0 flex-1 overflow-hidden">
+          {/* Location details like Google Maps */}
+          <ScrollArea className="flex-1">
             {selectedPoint ? (
               <TrashPointPanel
                 point={selectedPoint}
@@ -289,34 +321,100 @@ export default function EcoReciclaBUAP() {
                 isAdmin={isAdmin}
               />
             ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                  <MapPin className="h-8 w-8 text-primary" />
+              <div className="flex flex-col">
+                {/* Info rows like Google Maps */}
+                <div className="flex items-start gap-4 px-4 py-3 border-b">
+                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm text-foreground leading-relaxed">
+                      Cd Universitaria, 72592 Heroica Puebla de Zaragoza, Pue.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-semibold text-foreground">
-                    Selecciona un punto
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Haz clic en un contenedor del mapa para ver sus detalles
-                    {isAdmin ? " y estadisticas" : " y clasificar residuos"}
-                  </p>
+                <div className="flex items-center gap-4 px-4 py-3 border-b">
+                  <Clock className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-primary">Abierto</span>
+                    <span className="text-sm text-muted-foreground">{" "}Cierra a las 9 PM</span>
+                  </div>
                 </div>
-                {isAdmin && (isAddingPoint || isDrawingPolygon) && (
-                  <Badge
-                    variant="outline"
-                    className="border-primary/30 text-primary"
-                  >
-                    {isAddingPoint
-                      ? "Click en el mapa para colocar contenedor"
-                      : `Dibujando area (${drawingPoints.length} puntos)`}
-                  </Badge>
-                )}
+                <div className="flex items-center gap-4 px-4 py-3 border-b">
+                  <Globe className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <p className="text-sm text-primary flex-1">buap.mx</p>
+                </div>
+                <div className="flex items-center gap-4 px-4 py-3 border-b">
+                  <Phone className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <p className="text-sm text-foreground flex-1">222 229 5500</p>
+                </div>
+
+                {/* Container list */}
+                <div className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Contenedores ({trashPoints.length})
+                    </h3>
+                    <Link href="/dashboard" className="flex items-center gap-1 text-xs text-primary hover:underline">
+                      Ver estadisticas
+                      <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {trashPoints.map((point) => (
+                      <button
+                        key={point.id}
+                        onClick={() => handlePointClick(point)}
+                        className="flex items-center justify-between rounded-lg bg-muted/50 p-3 text-left transition-colors hover:bg-muted"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="h-3 w-3 rounded-full shrink-0"
+                            style={{
+                              backgroundColor:
+                                point.fillLevel > 80
+                                  ? "#ef4444"
+                                  : point.fillLevel > 50
+                                    ? "#eab308"
+                                    : "#10b981",
+                            }}
+                          />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              {point.name}
+                            </p>
+                            {point.alert && (
+                              <p className="text-xs text-destructive">
+                                {point.alert}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <span className="text-sm font-semibold text-muted-foreground shrink-0 ml-2">
+                          {point.fillLevel}%
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
-          </TabsContent>
-        </Tabs>
+          </ScrollArea>
+        </div>
       </aside>
+
+      {/* Collapse/expand toggle button (like Google Maps arrow) */}
+      <button
+        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+        className={`fixed z-50 top-1/2 -translate-y-1/2 hidden md:flex items-center justify-center h-8 w-6 bg-card border border-l-0 border-border rounded-r-md shadow-md transition-all duration-300 ease-in-out hover:bg-muted ${
+          sidebarCollapsed ? "left-0" : "left-[380px]"
+        }`}
+        aria-label={sidebarCollapsed ? "Expandir panel lateral" : "Colapsar panel lateral"}
+      >
+        {sidebarCollapsed ? (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+        )}
+      </button>
 
       {/* Map area */}
       <main className="relative flex-1 pt-14 md:pt-0">
