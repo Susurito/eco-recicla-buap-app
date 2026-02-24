@@ -144,9 +144,9 @@ export default function DashboardPage() {
   const progress = (student.ecoPoints / nextLevel) * 100
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
+    <div className="flex h-dvh flex-col bg-background">
       {/* Top bar */}
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-card px-4 lg:px-6">
+      <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between border-b bg-card px-4 lg:px-6">
         <div className="flex items-center gap-3">
           <Link href="/">
             <Button variant="ghost" size="icon-sm">
@@ -195,7 +195,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Main content */}
+      {/* Main content - scrollable */}
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
           {/* Page title */}

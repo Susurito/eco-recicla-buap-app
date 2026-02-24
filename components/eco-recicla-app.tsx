@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
+import Image from "next/image"
 import {
   type TrashPoint,
   type PolygonArea,
@@ -12,7 +13,6 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import TrashPointPanel from "@/components/trash-point-panel"
 import {
   Leaf,
@@ -27,10 +27,8 @@ import {
   Plus,
   Pentagon,
   CheckCircle,
-  Clock,
   Globe,
   Phone,
-  ExternalLink,
 } from "lucide-react"
 
 const MapView = dynamic(() => import("@/components/map-view"), {
@@ -56,11 +54,11 @@ export default function EcoReciclaBUAP() {
   const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([])
   const [student, setStudent] = useState(studentData)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const handlePointClick = useCallback((point: TrashPoint) => {
     setSelectedPoint(point)
-    setSidebarCollapsed(false)
+    setSidebarOpen(true)
   }, [])
 
   const handleClosePanel = useCallback(() => {
@@ -188,38 +186,40 @@ export default function EcoReciclaBUAP() {
         </div>
       </header>
 
-      {/* Sidebar */}
+      {/* Sidebar panel */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r bg-card shadow-lg transition-all duration-300 ease-in-out md:relative ${
-          sidebarCollapsed ? "w-0 md:w-0 overflow-hidden border-r-0" : "w-[380px]"
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-card shadow-xl transition-all duration-300 ease-in-out md:relative ${
+          sidebarOpen ? "w-[380px]" : "w-0 overflow-hidden"
         } ${
           mobileMenuOpen
             ? "translate-x-0 pt-14"
             : "-translate-x-full pt-14 md:translate-x-0 md:pt-0"
         }`}
       >
-        <div className="flex min-w-[380px] flex-col h-full">
-          {/* Reference image at top - like Google Maps place photo */}
-          <div className="relative h-48 w-full shrink-0 overflow-hidden">
-            <img
-              src="/images/referencia.jpg"
-              alt="Facultad de Cultura Fisica BUAP - Vista de referencia"
-              className="h-full w-full object-cover"
+        <div className="flex min-w-[380px] h-full flex-col overflow-y-auto overflow-x-hidden">
+          {/* Hero reference image */}
+          <div className="relative h-52 w-full shrink-0 overflow-hidden">
+            <Image
+              src="/images/campus-buap.jpg"
+              alt="Campus Universitario BUAP - Facultad de Computacion"
+              fill
+              className="object-cover"
+              priority
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
+            <div className="absolute bottom-3 left-4 right-4">
+              <h1 className="text-xl font-bold text-foreground leading-tight text-balance">
+                Eco-Recicla BUAP
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Facultad de Computacion
+              </p>
+            </div>
           </div>
 
-          {/* Location info (like Google Maps) */}
-          <div className="flex flex-col gap-1 border-b px-4 py-3">
-            <h1 className="text-lg font-bold text-foreground leading-tight">
-              Eco-Recicla BUAP
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Facultad de Computacion
-            </p>
-
-            {/* Role toggle */}
-            <div className="mt-2 flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
+          {/* Role toggle bar */}
+          <div className="border-b px-4 py-3">
+            <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
               <div className="flex items-center gap-2">
                 {isAdmin ? (
                   <Shield className="h-4 w-4 text-primary" />
@@ -240,7 +240,7 @@ export default function EcoReciclaBUAP() {
 
             {/* Eco-Points for student */}
             {!isAdmin && (
-              <div className="mt-1 flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+              <div className="mt-2 flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
                 <div className="flex items-center gap-2">
                   <Star className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium text-foreground">
@@ -254,13 +254,13 @@ export default function EcoReciclaBUAP() {
             )}
           </div>
 
-          {/* Action buttons row like Google Maps */}
+          {/* Action buttons - Google Maps style */}
           <div className="flex items-center justify-around border-b px-4 py-3">
             <Link
               href="/dashboard"
               className="flex flex-col items-center gap-1.5 group"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors group-hover:bg-primary/90">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform group-hover:scale-105">
                 <LayoutDashboard className="h-5 w-5" />
               </div>
               <span className="text-xs font-medium text-primary">
@@ -273,11 +273,13 @@ export default function EcoReciclaBUAP() {
                   onClick={handleAddPoint}
                   className="flex flex-col items-center gap-1.5 group"
                 >
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                    isAddingPoint
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-secondary-foreground group-hover:bg-secondary/80"
-                  }`}>
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${
+                      isAddingPoint
+                        ? "bg-primary text-primary-foreground scale-105"
+                        : "bg-secondary text-secondary-foreground group-hover:scale-105"
+                    }`}
+                  >
                     {isAddingPoint ? (
                       <CheckCircle className="h-5 w-5" />
                     ) : (
@@ -292,11 +294,13 @@ export default function EcoReciclaBUAP() {
                   onClick={handleDrawPolygon}
                   className="flex flex-col items-center gap-1.5 group"
                 >
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                    isDrawingPolygon
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-secondary-foreground group-hover:bg-secondary/80"
-                  }`}>
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${
+                      isDrawingPolygon
+                        ? "bg-primary text-primary-foreground scale-105"
+                        : "bg-secondary text-secondary-foreground group-hover:scale-105"
+                    }`}
+                  >
                     {isDrawingPolygon ? (
                       <CheckCircle className="h-5 w-5" />
                     ) : (
@@ -311,8 +315,8 @@ export default function EcoReciclaBUAP() {
             )}
           </div>
 
-          {/* Location details like Google Maps */}
-          <ScrollArea className="flex-1">
+          {/* Scrollable content area */}
+          <div className="flex-1 overflow-y-auto">
             {selectedPoint ? (
               <TrashPointPanel
                 point={selectedPoint}
@@ -322,29 +326,36 @@ export default function EcoReciclaBUAP() {
               />
             ) : (
               <div className="flex flex-col">
-                {/* Info rows like Google Maps */}
-                <div className="flex items-start gap-4 px-4 py-3 border-b">
-                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm text-foreground leading-relaxed">
-                      Cd Universitaria, 72592 Heroica Puebla de Zaragoza, Pue.
-                    </p>
+                {/* Second reference image */}
+                <div className="relative h-40 w-full overflow-hidden border-b">
+                  <Image
+                    src="/images/contenedor-reciclaje.jpg"
+                    alt="Contenedores de reciclaje en el campus"
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-card/60 to-transparent" />
+                  <div className="absolute bottom-2 left-3">
+                    <span className="text-xs font-medium text-foreground bg-card/80 rounded px-2 py-0.5">
+                      Puntos de reciclaje del campus
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 px-4 py-3 border-b">
-                  <Clock className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <div className="flex-1">
-                    <span className="text-sm font-medium text-primary">Abierto</span>
-                    <span className="text-sm text-muted-foreground">{" "}Cierra a las 9 PM</span>
-                  </div>
+
+                {/* Location info */}
+                <div className="flex items-start gap-4 px-4 py-3 border-b">
+                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                  <p className="text-sm text-foreground leading-relaxed">
+                    Cd Universitaria, 72592 Heroica Puebla de Zaragoza, Pue.
+                  </p>
                 </div>
                 <div className="flex items-center gap-4 px-4 py-3 border-b">
                   <Globe className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <p className="text-sm text-primary flex-1">buap.mx</p>
+                  <p className="text-sm text-primary">buap.mx</p>
                 </div>
                 <div className="flex items-center gap-4 px-4 py-3 border-b">
                   <Phone className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <p className="text-sm text-foreground flex-1">222 229 5500</p>
+                  <p className="text-sm text-foreground">222 229 5500</p>
                 </div>
 
                 {/* Container list */}
@@ -353,9 +364,11 @@ export default function EcoReciclaBUAP() {
                     <h3 className="text-sm font-semibold text-foreground">
                       Contenedores ({trashPoints.length})
                     </h3>
-                    <Link href="/dashboard" className="flex items-center gap-1 text-xs text-primary hover:underline">
+                    <Link
+                      href="/dashboard"
+                      className="text-xs text-primary hover:underline"
+                    >
                       Ver estadisticas
-                      <ExternalLink className="h-3 w-3" />
                     </Link>
                   </div>
                   <div className="flex flex-col gap-2">
@@ -397,28 +410,30 @@ export default function EcoReciclaBUAP() {
                 </div>
               </div>
             )}
-          </ScrollArea>
+          </div>
         </div>
       </aside>
 
-      {/* Collapse/expand toggle button (like Google Maps arrow) */}
+      {/* Google Maps collapse/expand arrow button */}
       <button
-        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-        className={`fixed z-50 top-1/2 -translate-y-1/2 hidden md:flex items-center justify-center h-8 w-6 bg-card border border-l-0 border-border rounded-r-md shadow-md transition-all duration-300 ease-in-out hover:bg-muted ${
-          sidebarCollapsed ? "left-0" : "left-[380px]"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className={`fixed z-50 top-1/2 -translate-y-1/2 hidden md:flex items-center justify-center h-12 w-5 bg-card border border-border rounded-r-md shadow-md transition-all duration-300 ease-in-out hover:bg-muted hover:w-6 ${
+          sidebarOpen ? "left-[380px] border-l-0" : "left-0 border-l-0"
         }`}
-        aria-label={sidebarCollapsed ? "Expandir panel lateral" : "Colapsar panel lateral"}
+        aria-label={
+          sidebarOpen ? "Colapsar panel lateral" : "Expandir panel lateral"
+        }
       >
-        {sidebarCollapsed ? (
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        ) : (
+        {sidebarOpen ? (
           <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
         )}
       </button>
 
       {/* Map area */}
       <main className="relative flex-1 pt-14 md:pt-0">
-        {/* Floating Eco-Points badge on map for student - desktop */}
+        {/* Floating Eco-Points badge on map - student desktop */}
         {!isAdmin && (
           <div className="absolute top-4 left-4 z-30 hidden md:flex">
             <div className="flex items-center gap-2 rounded-full border bg-card px-4 py-2 shadow-lg">
