@@ -232,7 +232,7 @@ export default function EcoReciclaBUAP() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">
-                  {isAdmin ? "Admin" : "Demo"}
+                  {isAdmin ? "Administrador" : "Demo"}
                 </span>
                 <Switch checked={isAdmin} onCheckedChange={handleRoleToggle} />
               </div>
@@ -264,7 +264,7 @@ export default function EcoReciclaBUAP() {
                 <LayoutDashboard className="h-5 w-5" />
               </div>
               <span className="text-xs font-medium text-primary">
-                Dashboard
+                Panel
               </span>
             </Link>
             {isAdmin && (
