@@ -33,20 +33,14 @@ export function LoginFormContent() {
       setIsLoading(true)
       setError(null)
       
-      const result = await signIn("google", {
-        redirect: false,
+      // Use redirect: true to let NextAuth handle the redirect
+      await signIn("google", {
+        redirect: true,
         callbackUrl: callbackUrl,
       })
-
-      if (result?.error) {
-        setError(result.error || "Failed to sign in with Google")
-      } else if (result?.ok) {
-        router.push(callbackUrl)
-      }
     } catch (err) {
       console.error("Sign in error:", err)
       setError("An error occurred. Please try again.")
-    } finally {
       setIsLoading(false)
     }
   }

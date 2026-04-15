@@ -15,8 +15,13 @@ export default async function DashboardPage() {
     session = await verifyStudentSession()
   }
 
-  // Render the dashboard with role information
+  // Render the dashboard with user information
   return (
-    <DashboardClient isAdmin={isAdmin} userId={session.user.id} />
+    <DashboardClient 
+      isAdmin={isAdmin} 
+      userId={session.user.id}
+      userName={session.user.name || "Usuario"}
+      userImage={session.user.image}
+    />
   )
 }

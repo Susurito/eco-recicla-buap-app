@@ -90,7 +90,17 @@ const weeklyTrend = [
   { day: "Dom", plastico: 10, papel: 8, organico: 5, general: 6 },
 ]
 
-export default function DashboardClient({ isAdmin, userId }: { isAdmin: boolean; userId: string }) {
+export default function DashboardClient({ 
+  isAdmin, 
+  userId,
+  userName,
+  userImage
+}: { 
+  isAdmin: boolean
+  userId: string
+  userName: string
+  userImage?: string | null
+}) {
   const [isAdminToggle, setIsAdminToggle] = useState(isAdmin)
   const trashPoints = initialTrashPoints
   const student = studentData
@@ -537,19 +547,27 @@ export default function DashboardClient({ isAdmin, userId }: { isAdmin: boolean;
               <div className="grid gap-4 lg:grid-cols-3">
                 {/* Student profile card */}
                 <Card className="lg:col-span-1">
-                  <CardContent className="p-0">
-                    <div className="rounded-t-xl bg-gradient-to-br from-primary to-primary/80 p-5 text-primary-foreground">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-foreground/20">
-                          <Leaf className="h-7 w-7" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-bold">{student.name}</h3>
-                          <p className="text-sm text-primary-foreground/80">
-                            Boleta: {student.boleta}
-                          </p>
-                        </div>
-                      </div>
+                   <CardContent className="p-0">
+                     <div className="rounded-t-xl bg-gradient-to-br from-primary to-primary/80 p-5 text-primary-foreground">
+                       <div className="flex items-center gap-3">
+                         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-foreground/20 overflow-hidden">
+                           {userImage ? (
+                             <img 
+                               src={userImage} 
+                               alt={userName}
+                               className="h-full w-full object-cover"
+                             />
+                           ) : (
+                             <Leaf className="h-7 w-7" />
+                           )}
+                         </div>
+                         <div className="flex-1">
+                           <h3 className="text-lg font-bold">{userName}</h3>
+                           <p className="text-sm text-primary-foreground/80">
+                             Boleta: {student.boleta}
+                           </p>
+                         </div>
+                       </div>
                       <div className="mt-4 flex items-center gap-3">
                         <Badge className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30">
                           {student.level}
