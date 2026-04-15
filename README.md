@@ -21,15 +21,13 @@ cd eco-recicla-buap-app
 # 2. Instalar dependencias
 pnpm install
 
-# 3. Crear archivo .env (si no existe)
-# Copia el contenido a continuación a un archivo .env en la raíz del proyecto
-# NEXTAUTH_SECRET=<tu-secret>
-# BETTER_AUTH_SECRET=<tu-secret>
-# DATABASE_URL=postgres://usuario:contraseña@localhost:5432/eco-db
-
-# 4. Configurar variables de entorno
-# Si no tienes NEXTAUTH_SECRET generado, ejecuta:
+# 3. Generar NEXTAUTH_SECRET
 npx auth secret
+
+# 4. Crear archivo .env.local para desarrollo (NUNCA commitear)
+# Copia este contenido en .env.local:
+#   NEXTAUTH_SECRET=<valor generado en paso 3>
+#   DATABASE_URL=postgres://postgres:postgres@localhost:5432/eco-db
 
 # 5. Sincronizar base de datos con Prisma
 npx prisma db push
@@ -42,6 +40,9 @@ pnpm dev
 ```
 
 Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
+
+⚠️ **IMPORTANTE**: Nunca commitees `.env` o `.env.local` con valores reales.
+Usa `.env.example` como plantilla y cada desarrollador debe tener su `.env.local`.
 
 ---
 
@@ -97,19 +98,59 @@ eco-recicla-buap-app/
 
 ---
 
-## 🔐 Configuración de Autenticación
+## 🔐 Configuración de Variables de Entorno
 
-### Variables de Entorno Requeridas
+### ⚠️ SEGURIDAD: NUNCA Commitear Secretos
 
-```env
-# Generado con: npx auth secret
-NEXTAUTH_SECRET=tu_secret_aleatorio_aqui
+- `.env` está en `.gitignore` y debe contener **solo placeholders**
+- `.env.local` debe contener valores **reales** (NO commitear)
+- Cada desarrollador tiene su propio `.env.local`
+- Producción usa variables en servidor (Vercel, Docker, etc.)
 
-# (Opcional) Para BetterAuth
-BETTER_AUTH_SECRET=tu_secret_aqui
+### Pasos para Configurar Variables
 
-# Base de datos
-DATABASE_URL=postgres://user:password@localhost:5432/eco-db
+#### 1. Generar NEXTAUTH_SECRET
+```bash
+npx auth secret
+# Salida: abc123def456... (copia este valor)
+```
+
+#### 2. Crear `.env.local` (NUNCA COMMITEAR)
+```bash
+# En la raíz del proyecto, crea archivo: .env.local
+NEXTAUTH_SECRET=abc123def456...  # (valor del paso 1)
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/eco-db
+```
+
+#### 3. Usar `.env.example` como referencia
+```bash
+# Este archivo SÍ se commitea, es una plantilla
+cp .env.example .env.local
+# Luego edita .env.local con tus valores reales
+```
+
+### Variables Disponibles
+
+| Variable | Requirida | Cómo Obtener |
+|----------|-----------|-------------|
+| `NEXTAUTH_SECRET` | ✅ | `npx auth secret` |
+| `DATABASE_URL` | ✅ | Configurar PostgreSQL localmente |
+| `GOOGLE_CLIENT_ID` | ❌ | [Google Cloud Console](https://console.cloud.google.com/) |
+| `GOOGLE_CLIENT_SECRET` | ❌ | [Google Cloud Console](https://console.cloud.google.com/) |
+| `GITHUB_CLIENT_ID` | ❌ | [GitHub Settings](https://github.com/settings/developers) |
+| `GITHUB_CLIENT_SECRET` | ❌ | [GitHub Settings](https://github.com/settings/developers) |
+
+### Comandos Útiles
+
+```bash
+# Generar nuevo NEXTAUTH_SECRET (ideal para cambiar)
+npx auth secret
+
+# Ver variables cargadas en actual ambiente
+echo $NEXTAUTH_SECRET
+
+# Recargar variables después de cambiar .env.local
+# (Detén y reinicia el servidor: Ctrl+C, luego pnpm dev)
 ```
 
 ### Agregar Providers (Google, GitHub, etc.)
@@ -201,7 +242,53 @@ npx prisma db push
 
 ---
 
+## 🔐 Seguridad - Manejo de Secretos
+
+### Estructura de Archivos de Configuración
+
+```
+.env              ✓ COMMITEAR (placeholders solo)
+.env.local        ✗ NUNCA COMMITEAR (secretos reales)
+.env.example      ✓ COMMITEAR (plantilla para nuevos devs)
+.gitignore        ✓ COMMITEAR (debe incluir .env.local)
+```
+
+### Generar Secretos
+
+```bash
+# NEXTAUTH_SECRET (obligatorio)
+npx auth secret
+# Copia el valor y pégalo en .env.local
+
+# Para bases de datos
+# Usa credenciales de tu servidor PostgreSQL local
+```
+
+### En Producción (Vercel, Docker, etc.)
+
+- No uses `.env.local`
+- Configura variables en el dashboard del servicio
+- Cada variable se configura por separado
+- No commitees archivos .env
+
+---
+
 ## 🔄 Cambios Recientes
+
+### v0.2.1 - Seguridad: Secretos Removidos
+
+**Cambios Implementados:**
+- ✅ Removidos secretos del `.env` commitado
+- ✅ Creado `.env.example` como plantilla
+- ✅ Creado `.env.local` para desarrollo local
+- ✅ Actualizado `.gitignore` con `.env.local`
+- ✅ Documentación de seguridad en README
+- ✅ Instrucciones para generar secretos
+
+**Archivos:**
+- `.env` - Contiene solo placeholders
+- `.env.example` - Plantilla para nuevos desarrolladores
+- `.env.local` - Secretos locales (no commitear)
 
 ### v0.2.0 - Reconfiguración de Prisma y Auth.js
 
@@ -216,28 +303,10 @@ npx prisma db push
 - `lib/prisma.ts` - Importación correcta de PrismaClient
 - `auth.ts` - Configuración completa de NextAuth.js
 - `prisma/schema.prisma` - Generator y datasource estándar
-- `.env` - Variables de entorno actualizadas
 
 **Eliminados:**
 - `prisma.config.ts` (no necesario en v6)
 - `app/generated/prisma/` (salida personalizada innecesaria)
-
----
-
-## 📝 Variables de Entorno Ejemplo
-
-```env
-# .env.local
-NEXTAUTH_SECRET=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-BETTER_AUTH_SECRET=abc123def456...
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/eco-db
-
-# Opcional - para providers OAuth
-GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=xxx
-GITHUB_CLIENT_ID=xxx
-GITHUB_CLIENT_SECRET=xxx
-```
 
 ---
 
