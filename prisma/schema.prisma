@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  //output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Category {
+  plastico
+  papel
+  organico
+  general
+}
+
+enum PrizeCategory {
+  internet
+  academic
+  cafeteria
+}
+
+
+model TrashPoint {
+  id             String   @id
+  name           String
+  lat            Float
+  lng            Float
+  detectedObject String
+  detectedImage  String
+  category       Category?
+  fillLevel      Int
+  lastCollected  String
+  alert          String?
+
+  todayStats     TodayStats?
+}
+
+model TodayStats {
+  id         Int    @id @default(autoincrement())
+  plastico   Int
+  papel      Int
+  organico   Int
+  general    Int
+
+  trashPoint   TrashPoint @relation(fields: [trashPointId], references: [id])
+  trashPointId String     @unique
+}
+
+model Student {
+  boleta         String @id
+  name           String
+  ecoPoints      Int
+  classifications Int
+  level          String
+}
+
+model Prize {
+  id          String @id
+  name        String
+  description String
+  cost        Int
+  icon        String
+  category    PrizeCategory
+}
+
+model PolygonArea {
+  id    String @id
+  name  String
+  color String
+
+  points PolygonPoint[]
+}
+
+model PolygonPoint {
+  id     Int    @id @default(autoincrement())
+  lat    Float
+  lng    Float
+
+  area   PolygonArea @relation(fields: [areaId], references: [id])
+  areaId String
+}
