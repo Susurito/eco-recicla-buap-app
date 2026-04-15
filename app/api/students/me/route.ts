@@ -1,7 +1,6 @@
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
-import { NextRequest } from "next/server";
-import { protectRoute, errorResponse, successResponse } from "@/lib/auth-utils";
+import { verifyStudentSession } from "@/lib/dal"
+import { prisma } from "@/lib/prisma"
+import { NextRequest, NextResponse } from "next/server"
 
 /**
  * GET /api/students/me
@@ -9,47 +8,34 @@ import { protectRoute, errorResponse, successResponse } from "@/lib/auth-utils";
  */
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await protectRoute();
-    if (!session || !session.user?.email) {
-      return errorResponse("Unauthorized - No active session", 401);
-    }
-
-    // Get user from database by email
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return errorResponse("User not found", 404);
-    }
+    // Verify user is authenticated and is a student
+    const session = await verifyStudentSession()
 
     // Get student profile
     let student = await prisma.student.findFirst({
-      where: { userId: user.id },
-    });
+      where: { userId: session.user.id },
+    })
 
     // If student profile doesn't exist, create one
     if (!student) {
       // Generate a default boleta (student ID) from timestamp
-      const boleta = `EST${Date.now()}`;
+      const boleta = `EST${Date.now()}`
 
       student = await prisma.student.create({
         data: {
           boleta,
-          userId: user.id,
+          userId: session.user.id,
           ecoPoints: 0,
           classifications: 0,
           level: "Principiante",
         },
-      });
+      })
     }
 
-    return successResponse(
+    return NextResponse.json(
       {
         student: {
           boleta: student.boleta,
-          userId: student.userId,
           ecoPoints: student.ecoPoints,
           classifications: student.classifications,
           level: student.level,
@@ -57,17 +43,20 @@ export async function GET(request: NextRequest) {
           updatedAt: student.updatedAt,
         },
         user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image,
+          id: session.user.id,
+          name: session.user.name,
+          email: session.user.email,
+          image: session.user.image,
         },
       },
-      200
-    );
+      { status: 200 }
+    )
   } catch (error) {
-    console.error("[students/me GET] Error:", error);
-    return errorResponse("Failed to fetch student profile", 500);
+    console.error("[students/me GET] Error:", error)
+    return NextResponse.json(
+      { error: "Failed to fetch student profile" },
+      { status: 500 }
+    )
   }
 }
 
@@ -84,80 +73,76 @@ export async function GET(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await protectRoute();
-    if (!session || !session.user?.email) {
-      return errorResponse("Unauthorized - No active session", 401);
-    }
+    // Verify user is authenticated and is a student
+    const session = await verifyStudentSession()
 
     // Parse request body
-    const body = await request.json().catch(() => ({}));
-    const { ecoPoints, classifications, level } = body;
+    const body = await request.json().catch(() => ({}))
+    const { ecoPoints, classifications, level } = body
 
     // Validate input
-    if (
-      ecoPoints !== undefined &&
-      (typeof ecoPoints !== "number" || ecoPoints < 0)
-    ) {
-      return errorResponse("ecoPoints must be a non-negative number", 400);
+    if (ecoPoints !== undefined && (typeof ecoPoints !== "number" || ecoPoints < 0)) {
+      return NextResponse.json(
+        { error: "ecoPoints must be a non-negative number" },
+        { status: 400 }
+      )
     }
 
     if (
       classifications !== undefined &&
       (typeof classifications !== "number" || classifications < 0)
     ) {
-      return errorResponse("classifications must be a non-negative number", 400);
+      return NextResponse.json(
+        { error: "classifications must be a non-negative number" },
+        { status: 400 }
+      )
     }
 
     if (level !== undefined && typeof level !== "string") {
-      return errorResponse("level must be a string", 400);
-    }
-
-    // Get user from database
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return errorResponse("User not found", 404);
+      return NextResponse.json(
+        { error: "level must be a string" },
+        { status: 400 }
+      )
     }
 
     // Get student profile
     const student = await prisma.student.findFirst({
-      where: { userId: user.id },
-    });
+      where: { userId: session.user.id },
+    })
 
     if (!student) {
-      return errorResponse("Student profile not found", 404);
+      return NextResponse.json(
+        { error: "Student profile not found" },
+        { status: 404 }
+      )
     }
 
     // Prepare update data
-    const updateData: any = {};
+    const updateData: any = {}
 
     if (ecoPoints !== undefined) {
-      updateData.ecoPoints = ecoPoints;
+      updateData.ecoPoints = ecoPoints
     }
 
     if (classifications !== undefined) {
-      updateData.classifications = classifications;
+      updateData.classifications = classifications
     }
 
     if (level !== undefined) {
-      updateData.level = level;
+      updateData.level = level
     }
 
     // Update student profile
     const updatedStudent = await prisma.student.update({
       where: { boleta: student.boleta },
       data: updateData,
-    });
+    })
 
-    return successResponse(
+    return NextResponse.json(
       {
         message: "Student profile updated successfully",
         student: {
           boleta: updatedStudent.boleta,
-          userId: updatedStudent.userId,
           ecoPoints: updatedStudent.ecoPoints,
           classifications: updatedStudent.classifications,
           level: updatedStudent.level,
@@ -165,10 +150,13 @@ export async function PATCH(request: NextRequest) {
           updatedAt: updatedStudent.updatedAt,
         },
       },
-      200
-    );
+      { status: 200 }
+    )
   } catch (error) {
-    console.error("[students/me PATCH] Error:", error);
-    return errorResponse("Failed to update student profile", 500);
+    console.error("[students/me PATCH] Error:", error)
+    return NextResponse.json(
+      { error: "Failed to update student profile" },
+      { status: 500 }
+    )
   }
 }

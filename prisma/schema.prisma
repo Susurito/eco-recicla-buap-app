@@ -97,6 +97,7 @@ model User {
   email         String          @unique
   emailVerified DateTime?
   image         String?
+  role          String          @default("student") // "student" or "admin"
   accounts      Account[]
   sessions      Session[]
   student       Student?
