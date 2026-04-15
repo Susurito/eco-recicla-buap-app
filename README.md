@@ -41,8 +41,7 @@ pnpm dev
 
 Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
-⚠️ **IMPORTANTE**: Nunca commitees `.env` o `.env.local` con valores reales.
-Usa `.env.example` como plantilla y cada desarrollador debe tener su `.env.local`.
+
 
 ---
 
@@ -98,14 +97,8 @@ eco-recicla-buap-app/
 
 ---
 
-## 🔐 Configuración de Variables de Entorno
 
-### ⚠️ SEGURIDAD: NUNCA Commitear Secretos
 
-- `.env` está en `.gitignore` y debe contener **solo placeholders**
-- `.env.local` debe contener valores **reales** (NO commitear)
-- Cada desarrollador tiene su propio `.env.local`
-- Producción usa variables en servidor (Vercel, Docker, etc.)
 
 ### Pasos para Configurar Variables
 
@@ -264,31 +257,6 @@ npx auth secret
 # Usa credenciales de tu servidor PostgreSQL local
 ```
 
-### En Producción (Vercel, Docker, etc.)
-
-- No uses `.env.local`
-- Configura variables en el dashboard del servicio
-- Cada variable se configura por separado
-- No commitees archivos .env
-
----
-
-## 🔄 Cambios Recientes
-
-### v0.2.1 - Seguridad: Secretos Removidos
-
-**Cambios Implementados:**
-- ✅ Removidos secretos del `.env` commitado
-- ✅ Creado `.env.example` como plantilla
-- ✅ Creado `.env.local` para desarrollo local
-- ✅ Actualizado `.gitignore` con `.env.local`
-- ✅ Documentación de seguridad en README
-- ✅ Instrucciones para generar secretos
-
-**Archivos:**
-- `.env` - Contiene solo placeholders
-- `.env.example` - Plantilla para nuevos desarrolladores
-- `.env.local` - Secretos locales (no commitear)
 
 ### v0.2.0 - Reconfiguración de Prisma y Auth.js
 
