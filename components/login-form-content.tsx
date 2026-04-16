@@ -20,6 +20,8 @@ import { Input } from "@/components/ui/input"
 import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
 
 export function LoginFormContent() {
   const [isLoading, setIsLoading] = useState(false)
@@ -126,6 +128,14 @@ export function LoginFormContent() {
         Al continuar, aceptas nuestros <a href="#">Términos de Servicio</a>{" "}
         y <a href="#">Política de Privacidad</a>.
       </FieldDescription>
+      <div className="px-6">
+        <Link href="/">
+          <Button variant="outline" className="w-full">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Volver al Home
+          </Button>
+        </Link>
+      </div>
     </>
   )
 }
