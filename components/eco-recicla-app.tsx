@@ -68,7 +68,10 @@ export default function EcoReciclaBUAP() {
 
   // Load additional student data when session is available
   useEffect(() => {
+    console.log("[EcoReciclaBUAP] Session state:", { session, loading })
+    
     if (!loading && session) {
+      console.log("[EcoReciclaBUAP] Setting user data from session")
       // Use session data directly
       setStudentData_local({
         name: session.user.name || "Usuario",
@@ -82,23 +85,26 @@ export default function EcoReciclaBUAP() {
           const response = await fetch("/api/students/me")
           if (response.ok) {
             const data = await response.json()
+            console.log("[EcoReciclaBUAP] Fetched student data:", data)
             // Update student data with fetched values
             setStudent((prev) => ({
               ...prev,
               ...data.student,
             }))
           } else if (response.status === 401) {
+            console.log("[EcoReciclaBUAP] Session invalid (401), clearing user data")
             // Session is invalid, clear it
             setStudentData_local(null)
             setStudent(studentData)
           }
         } catch (error) {
-          console.error("Failed to fetch student data:", error)
+          console.error("[EcoReciclaBUAP] Failed to fetch student data:", error)
         }
       }
 
       fetchStudentData()
     } else if (!loading && !session) {
+      console.log("[EcoReciclaBUAP] No session, clearing user data")
       // No session, show public map but show login prompt
       setStudentData_local(null)
       setStudent(studentData)

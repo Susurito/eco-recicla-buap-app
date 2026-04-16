@@ -28,12 +28,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const response = await fetch("/api/session")
       if (response.ok) {
         const data = await response.json()
+        console.log("[SessionProvider] Fetched session:", data)
         setSession(data)
       } else {
+        console.log("[SessionProvider] Session endpoint returned", response.status)
         setSession(null)
       }
     } catch (error) {
-      console.error("Failed to fetch session:", error)
+      console.error("[SessionProvider] Failed to fetch session:", error)
       setSession(null)
     } finally {
       setLoading(false)
