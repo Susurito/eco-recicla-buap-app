@@ -249,11 +249,11 @@ export default function EcoReciclaBUAP() {
             </div>
           </div>
 
-          {/* Role toggle bar */}
+          {/* Session status bar */}
           <div className="border-b px-4 py-3">
             {/* User profile section */}
-            {userData && (
-              <div className="mb-3 flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+            {userData ? (
+              <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
                   {userData.image ? (
                     <img
@@ -270,105 +270,53 @@ export default function EcoReciclaBUAP() {
                     {userData.name}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {userData.email}
+                    Sesión iniciada
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground shrink-0">
+                  <User className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    Sin sesión
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Inicia sesión para continuar
                   </p>
                 </div>
               </div>
             )}
-
-            <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
-              <div className="flex items-center gap-2">
-                {isAdmin ? (
-                  <Shield className="h-4 w-4 text-primary" />
-                ) : (
-                  <Star className="h-4 w-4 text-primary" />
-                )}
-                <span className="text-sm font-medium text-foreground">
-                  {isAdmin ? "Administrador" : "Estudiante"}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {isAdmin ? "Administrador" : "Demo"}
-                </span>
-                <Switch checked={isAdmin} onCheckedChange={handleRoleToggle} />
-              </div>
-            </div>
-
-            {/* Eco-Points for student */}
-            {!isAdmin && (
-              <div className="mt-2 flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Star className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">
-                    Eco-Points
-                  </span>
-                </div>
-                <span className="text-lg font-bold text-primary">
-                  {student.ecoPoints.toLocaleString()}
-                </span>
-              </div>
-            )}
           </div>
 
-          {/* Action buttons - Google Maps style */}
-          <div className="flex items-center justify-around border-b px-4 py-3">
-            <Link
-              href="/dashboard"
-              className="flex flex-col items-center gap-1.5 group"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform group-hover:scale-105">
-                <LayoutDashboard className="h-5 w-5" />
-              </div>
-              <span className="text-xs font-medium text-primary">
-                Panel
-              </span>
-            </Link>
-            {isAdmin && (
-              <>
-                <button
-                  onClick={handleAddPoint}
-                  className="flex flex-col items-center gap-1.5 group"
-                >
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${
-                      isAddingPoint
-                        ? "bg-primary text-primary-foreground scale-105"
-                        : "bg-secondary text-secondary-foreground group-hover:scale-105"
-                    }`}
-                  >
-                    {isAddingPoint ? (
-                      <CheckCircle className="h-5 w-5" />
-                    ) : (
-                      <Plus className="h-5 w-5" />
-                    )}
-                  </div>
-                  <span className="text-xs font-medium text-foreground">
-                    {isAddingPoint ? "Colocando" : "Agregar"}
-                  </span>
-                </button>
-                <button
-                  onClick={handleDrawPolygon}
-                  className="flex flex-col items-center gap-1.5 group"
-                >
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${
-                      isDrawingPolygon
-                        ? "bg-primary text-primary-foreground scale-105"
-                        : "bg-secondary text-secondary-foreground group-hover:scale-105"
-                    }`}
-                  >
-                    {isDrawingPolygon ? (
-                      <CheckCircle className="h-5 w-5" />
-                    ) : (
-                      <Pentagon className="h-5 w-5" />
-                    )}
-                  </div>
-                  <span className="text-xs font-medium text-foreground">
-                    {isDrawingPolygon ? "Dibujando" : "Area"}
-                  </span>
-                </button>
-              </>
+          {/* Action buttons - Navigation */}
+          <div className="flex items-center justify-center border-b px-4 py-3">
+            {userData ? (
+              <Link
+                href="/dashboard"
+                className="flex flex-col items-center gap-1.5 group"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform group-hover:scale-105">
+                  <LayoutDashboard className="h-5 w-5" />
+                </div>
+                <span className="text-xs font-medium text-primary">
+                  Panel
+                </span>
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="flex flex-col items-center gap-1.5 group"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform group-hover:scale-105">
+                  <User className="h-5 w-5" />
+                </div>
+                <span className="text-xs font-medium text-primary">
+                  Iniciar sesión
+                </span>
+              </Link>
             )}
           </div>
 
