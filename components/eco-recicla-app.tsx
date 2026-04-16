@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import Image from "next/image"
@@ -29,6 +29,7 @@ import {
   CheckCircle,
   Globe,
   Phone,
+  User,
 } from "lucide-react"
 
 const MapView = dynamic(() => import("@/components/map-view"), {
@@ -55,6 +56,37 @@ export default function EcoReciclaBUAP() {
   const [student, setStudent] = useState(studentData)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [userData, setUserData] = useState<{
+    name: string
+    email: string
+    image: string | null
+  } | null>(null)
+
+  // Load user data from API
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch("/api/students/me")
+        if (response.ok) {
+          const data = await response.json()
+          setUserData({
+            name: data.user.name || "Usuario",
+            email: data.user.email || "",
+            image: data.user.image || null,
+          })
+          // Also update student data
+          setStudent((prev) => ({
+            ...prev,
+            ...data.student,
+          }))
+        }
+      } catch (error) {
+        console.error("Failed to fetch user data:", error)
+      }
+    }
+
+    fetchUserData()
+  }, [])
 
   const handlePointClick = useCallback((point: TrashPoint) => {
     setSelectedPoint(point)
@@ -217,101 +249,74 @@ export default function EcoReciclaBUAP() {
             </div>
           </div>
 
-          {/* Role toggle bar */}
+          {/* Session status bar */}
           <div className="border-b px-4 py-3">
-            <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
-              <div className="flex items-center gap-2">
-                {isAdmin ? (
-                  <Shield className="h-4 w-4 text-primary" />
-                ) : (
-                  <Star className="h-4 w-4 text-primary" />
-                )}
-                <span className="text-sm font-medium text-foreground">
-                  {isAdmin ? "Administrador" : "Estudiante"}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {isAdmin ? "Administrador" : "Demo"}
-                </span>
-                <Switch checked={isAdmin} onCheckedChange={handleRoleToggle} />
-              </div>
-            </div>
-
-            {/* Eco-Points for student */}
-            {!isAdmin && (
-              <div className="mt-2 flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Star className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">
-                    Eco-Points
-                  </span>
+            {/* User profile section */}
+            {userData ? (
+              <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
+                  {userData.image ? (
+                    <img
+                      src={userData.image}
+                      alt={userData.name}
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-5 w-5" />
+                  )}
                 </div>
-                <span className="text-lg font-bold text-primary">
-                  {student.ecoPoints.toLocaleString()}
-                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {userData.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    Sesión iniciada
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground shrink-0">
+                  <User className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    Sin sesión
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Inicia sesión para continuar
+                  </p>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Action buttons - Google Maps style */}
-          <div className="flex items-center justify-around border-b px-4 py-3">
-            <Link
-              href="/dashboard"
-              className="flex flex-col items-center gap-1.5 group"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform group-hover:scale-105">
-                <LayoutDashboard className="h-5 w-5" />
-              </div>
-              <span className="text-xs font-medium text-primary">
-                Panel
-              </span>
-            </Link>
-            {isAdmin && (
-              <>
-                <button
-                  onClick={handleAddPoint}
-                  className="flex flex-col items-center gap-1.5 group"
-                >
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${
-                      isAddingPoint
-                        ? "bg-primary text-primary-foreground scale-105"
-                        : "bg-secondary text-secondary-foreground group-hover:scale-105"
-                    }`}
-                  >
-                    {isAddingPoint ? (
-                      <CheckCircle className="h-5 w-5" />
-                    ) : (
-                      <Plus className="h-5 w-5" />
-                    )}
-                  </div>
-                  <span className="text-xs font-medium text-foreground">
-                    {isAddingPoint ? "Colocando" : "Agregar"}
-                  </span>
-                </button>
-                <button
-                  onClick={handleDrawPolygon}
-                  className="flex flex-col items-center gap-1.5 group"
-                >
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${
-                      isDrawingPolygon
-                        ? "bg-primary text-primary-foreground scale-105"
-                        : "bg-secondary text-secondary-foreground group-hover:scale-105"
-                    }`}
-                  >
-                    {isDrawingPolygon ? (
-                      <CheckCircle className="h-5 w-5" />
-                    ) : (
-                      <Pentagon className="h-5 w-5" />
-                    )}
-                  </div>
-                  <span className="text-xs font-medium text-foreground">
-                    {isDrawingPolygon ? "Dibujando" : "Area"}
-                  </span>
-                </button>
-              </>
+          {/* Action buttons - Navigation */}
+          <div className="flex items-center justify-center border-b px-4 py-3">
+            {userData ? (
+              <Link
+                href="/dashboard"
+                className="flex flex-col items-center gap-1.5 group"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform group-hover:scale-105">
+                  <LayoutDashboard className="h-5 w-5" />
+                </div>
+                <span className="text-xs font-medium text-primary">
+                  Panel
+                </span>
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="flex flex-col items-center gap-1.5 group"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform group-hover:scale-105">
+                  <User className="h-5 w-5" />
+                </div>
+                <span className="text-xs font-medium text-primary">
+                  Iniciar sesión
+                </span>
+              </Link>
             )}
           </div>
 
@@ -414,20 +419,20 @@ export default function EcoReciclaBUAP() {
         </div>
       </aside>
 
-      {/* Google Maps collapse/expand arrow button */}
+      {/* Desktop sidebar toggle button - hamburger menu */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className={`fixed z-50 top-1/2 -translate-y-1/2 hidden md:flex items-center justify-center h-12 w-5 bg-card border border-border rounded-r-md shadow-md transition-all duration-300 ease-in-out hover:bg-muted hover:w-6 ${
-          sidebarOpen ? "left-[380px] border-l-0" : "left-0 border-l-0"
+        className={`fixed z-[999] top-4 left-4 items-center justify-center h-10 w-10 bg-card border border-border rounded-lg shadow-md transition-all duration-300 ease-in-out hover:bg-muted cursor-pointer ${
+          sidebarOpen ? "hidden md:flex" : "md:flex flex"
         }`}
         aria-label={
           sidebarOpen ? "Colapsar panel lateral" : "Expandir panel lateral"
         }
       >
         {sidebarOpen ? (
-          <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+          <X className="h-5 w-5 text-foreground" />
         ) : (
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          <Menu className="h-5 w-5 text-foreground" />
         )}
       </button>
 
