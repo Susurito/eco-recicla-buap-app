@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Space_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { SessionProvider } from '@/lib/session-context'
 import './globals.css'
 
 const _inter = Inter({ subsets: ['latin'] })
@@ -39,7 +40,9 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans antialiased overflow-hidden">
-        {children}
+        <SessionProvider>
+          {children}
+        </SessionProvider>
         <Analytics />
       </body>
     </html>

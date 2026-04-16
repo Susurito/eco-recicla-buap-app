@@ -11,6 +11,7 @@ import {
   initialTrashPoints,
   studentData,
 } from "@/lib/data"
+import { useSession } from "@/lib/session-context"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -47,6 +48,7 @@ const MapView = dynamic(() => import("@/components/map-view"), {
 
 export default function EcoReciclaBUAP() {
   const router = useRouter()
+  const { session, loading } = useSession()
   const [isAdmin, setIsAdmin] = useState(false)
   const [trashPoints, setTrashPoints] =
     useState<TrashPoint[]>(initialTrashPoints)
@@ -58,45 +60,57 @@ export default function EcoReciclaBUAP() {
   const [student, setStudent] = useState(studentData)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [userData, setUserData] = useState<{
+  const [studentData_local, setStudentData_local] = useState<{
     name: string
     email: string
     image: string | null
   } | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
 
-  // Load user data from API
+  // Load additional student data when session is available
+  // NOTE: This only runs if session exists (logged in)
+  // Public visitors won't trigger the /api/students/me fetch
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const response = await fetch("/api/students/me")
-        if (response.ok) {
-          const data = await response.json()
-          setUserData({
-            name: data.user.name || "Usuario",
-            email: data.user.email || "",
-            image: data.user.image || null,
-          })
-          // Also update student data
-          setStudent((prev) => ({
-            ...prev,
-            ...data.student,
-          }))
-        } else {
-          // No session, redirect to login
-          router.push("/login")
-        }
-      } catch (error) {
-        console.error("Failed to fetch user data:", error)
-        // On error, redirect to login
-        router.push("/login")
-      } finally {
-        setIsLoading(false)
-      }
-    }
+    if (!loading && session) {
+      console.log("[EcoReciclaBUAP] User logged in, fetching student data")
+      // Use session data directly
+      setStudentData_local({
+        name: session.user.name || "Usuario",
+        email: session.user.email || "",
+        image: session.user.image || null,
+      })
 
-    fetchUserData()
-  }, [router])
+      // Fetch student profile for ecoPoints and other stats
+      // Only runs when user is authenticated
+      const fetchStudentData = async () => {
+        try {
+          const response = await fetch("/api/students/me")
+          if (response.ok) {
+            const data = await response.json()
+            console.log("[EcoReciclaBUAP] Student data loaded successfully")
+            // Update student data with fetched values
+            setStudent((prev) => ({
+              ...prev,
+              ...data.student,
+            }))
+          } else if (response.status === 401) {
+            console.log("[EcoReciclaBUAP] Session invalid, clearing user data")
+            // Session is invalid, clear it
+            setStudentData_local(null)
+            setStudent(studentData)
+          }
+        } catch (error) {
+          console.error("[EcoReciclaBUAP] Error fetching student data:", error)
+        }
+      }
+
+      fetchStudentData()
+    } else if (!loading && !session) {
+      console.log("[EcoReciclaBUAP] Public visitor - no session")
+      // No session, show public map without fetching user data
+      setStudentData_local(null)
+      setStudent(studentData)
+    }
+  }, [session, loading])
 
   const handlePointClick = useCallback((point: TrashPoint) => {
     setSelectedPoint(point)
@@ -194,7 +208,7 @@ export default function EcoReciclaBUAP() {
   }, [])
 
   // Show loading while verifying session
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex h-dvh w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -274,13 +288,13 @@ export default function EcoReciclaBUAP() {
           {/* Session status bar */}
           <div className="border-b px-4 py-3">
             {/* User profile section */}
-            {userData ? (
+            {studentData_local ? (
               <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
-                  {userData.image ? (
+                  {studentData_local.image ? (
                     <img
-                      src={userData.image}
-                      alt={userData.name}
+                      src={studentData_local.image}
+                      alt={studentData_local.name}
                       className="h-10 w-10 rounded-full object-cover"
                     />
                   ) : (
@@ -289,7 +303,7 @@ export default function EcoReciclaBUAP() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">
-                    {userData.name}
+                    {studentData_local.name}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
                     Sesión iniciada
@@ -315,7 +329,7 @@ export default function EcoReciclaBUAP() {
 
           {/* Action buttons - Navigation */}
           <div className="flex items-center justify-center border-b px-4 py-3">
-            {userData ? (
+            {studentData_local ? (
               <Link
                 href="/dashboard"
                 className="flex flex-col items-center gap-1.5 group"

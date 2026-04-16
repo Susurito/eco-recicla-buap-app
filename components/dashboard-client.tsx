@@ -49,7 +49,9 @@ import {
   Users,
   CalendarDays,
   BarChart3,
+  LogOut,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 function getPrizeIcon(iconName: string) {
   switch (iconName) {
@@ -64,6 +66,53 @@ function getPrizeIcon(iconName: string) {
     default:
       return <Star className="h-5 w-5" />
   }
+}
+
+function LogoutButton() {
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleLogout = async () => {
+    setIsLoading(true)
+    try {
+      // Call sign out endpoint
+      const response = await fetch("/api/auth/signout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (response.ok) {
+        // Signal other tabs about logout via localStorage
+        localStorage.setItem("auth-logout-signal", Date.now().toString())
+        
+        // Wait a moment for cleanup
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        // Redirect to login
+        router.push("/login")
+      } else {
+        console.error("Logout failed:", await response.text())
+        setIsLoading(false)
+      }
+    } catch (error) {
+      console.error("Logout failed:", error)
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <Button
+      variant="outline"
+      size="icon-sm"
+      onClick={handleLogout}
+      disabled={isLoading}
+      title="Cerrar sesión"
+    >
+      <LogOut className="h-4 w-4" />
+    </Button>
+  )
 }
 
 function getCategoryColor(category: string) {
@@ -189,6 +238,7 @@ export default function DashboardClient({
               {student.ecoPoints} pts
             </Badge>
           )}
+          <LogoutButton />
         </div>
       </header>
 
