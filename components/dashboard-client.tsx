@@ -78,14 +78,23 @@ function LogoutButton() {
       // Call sign out endpoint
       const response = await fetch("/api/auth/signout", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
       })
 
       if (response.ok) {
         // Signal other tabs about logout via localStorage
         localStorage.setItem("auth-logout-signal", Date.now().toString())
         
+        // Wait a moment for cleanup
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
         // Redirect to login
         router.push("/login")
+      } else {
+        console.error("Logout failed:", await response.text())
+        setIsLoading(false)
       }
     } catch (error) {
       console.error("Logout failed:", error)
