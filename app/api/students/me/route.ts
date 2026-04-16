@@ -1,4 +1,4 @@
-import { verifyStudentSession } from "@/lib/dal"
+import { getSession } from "@/lib/dal"
 import { prisma } from "@/lib/prisma"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -8,8 +8,24 @@ import { NextRequest, NextResponse } from "next/server"
  */
 export async function GET(request: NextRequest) {
   try {
-    // Verify user is authenticated and is a student
-    const session = await verifyStudentSession()
+    // Verify user is authenticated
+    const session = await getSession()
+    
+    // Check authentication
+    if (!session) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      )
+    }
+    
+    // Check student role (optional - for now allow all authenticated users)
+    // if (session.role !== "student") {
+    //   return NextResponse.json(
+    //     { error: "Forbidden: Students only" },
+    //     { status: 403 }
+    //   )
+    // }
 
     // Get student profile
     let student = await prisma.student.findFirst({
@@ -73,8 +89,15 @@ export async function GET(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    // Verify user is authenticated and is a student
-    const session = await verifyStudentSession()
+    // Verify user is authenticated
+    const session = await getSession()
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      )
+    }
 
     // Parse request body
     const body = await request.json().catch(() => ({}))
