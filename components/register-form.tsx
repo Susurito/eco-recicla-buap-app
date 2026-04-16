@@ -46,18 +46,15 @@ export function RegisterForm({
                                 />
                             </Field>
                             <Field>
-                                <Field className="grid grid-cols-2 gap-4">
+                                <FieldLabel>Contraseña</FieldLabel>
+                                <FieldGroup className="grid grid-cols-2 gap-4">
                                     <Field>
-                                        <FieldLabel htmlFor="password">Contraseña</FieldLabel>
-                                        <Input id="password" type="password" required />
+                                        <Input id="password" type="password" placeholder="Contraseña" required />
                                     </Field>
                                     <Field>
-                                        <FieldLabel htmlFor="confirm-password">
-                                            Confirmar Contraseña
-                                        </FieldLabel>
-                                        <Input id="confirm-password" type="password" required />
+                                        <Input id="confirm-password" type="password" placeholder="Confirmar Contraseña" required />
                                     </Field>
-                                </Field>
+                                </FieldGroup>
                                 <FieldDescription>
                                     Debe tener al menos 8 caracteres.
                                 </FieldDescription>

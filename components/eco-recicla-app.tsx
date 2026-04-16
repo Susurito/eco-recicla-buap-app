@@ -414,20 +414,20 @@ export default function EcoReciclaBUAP() {
         </div>
       </aside>
 
-      {/* Google Maps collapse/expand arrow button */}
+      {/* Desktop sidebar toggle button - hamburger menu */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className={`fixed z-50 top-1/2 -translate-y-1/2 hidden md:flex items-center justify-center h-12 w-5 bg-card border border-border rounded-r-md shadow-md transition-all duration-300 ease-in-out hover:bg-muted hover:w-6 ${
-          sidebarOpen ? "left-[380px] border-l-0" : "left-0 border-l-0"
+        className={`fixed z-[999] top-4 left-4 items-center justify-center h-10 w-10 bg-card border border-border rounded-lg shadow-md transition-all duration-300 ease-in-out hover:bg-muted cursor-pointer ${
+          sidebarOpen ? "hidden md:flex" : "md:flex flex"
         }`}
         aria-label={
           sidebarOpen ? "Colapsar panel lateral" : "Expandir panel lateral"
         }
       >
         {sidebarOpen ? (
-          <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+          <X className="h-5 w-5 text-foreground" />
         ) : (
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          <Menu className="h-5 w-5 text-foreground" />
         )}
       </button>
 
