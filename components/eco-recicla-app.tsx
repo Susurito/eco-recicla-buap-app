@@ -67,11 +67,11 @@ export default function EcoReciclaBUAP() {
   } | null>(null)
 
   // Load additional student data when session is available
+  // NOTE: This only runs if session exists (logged in)
+  // Public visitors won't trigger the /api/students/me fetch
   useEffect(() => {
-    console.log("[EcoReciclaBUAP] Session state:", { session, loading })
-    
     if (!loading && session) {
-      console.log("[EcoReciclaBUAP] Setting user data from session")
+      console.log("[EcoReciclaBUAP] User logged in, fetching student data")
       // Use session data directly
       setStudentData_local({
         name: session.user.name || "Usuario",
@@ -79,33 +79,34 @@ export default function EcoReciclaBUAP() {
         image: session.user.image || null,
       })
 
-      // Also fetch student profile for ecoPoints and other stats
+      // Fetch student profile for ecoPoints and other stats
+      // Only runs when user is authenticated
       const fetchStudentData = async () => {
         try {
           const response = await fetch("/api/students/me")
           if (response.ok) {
             const data = await response.json()
-            console.log("[EcoReciclaBUAP] Fetched student data:", data)
+            console.log("[EcoReciclaBUAP] Student data loaded successfully")
             // Update student data with fetched values
             setStudent((prev) => ({
               ...prev,
               ...data.student,
             }))
           } else if (response.status === 401) {
-            console.log("[EcoReciclaBUAP] Session invalid (401), clearing user data")
+            console.log("[EcoReciclaBUAP] Session invalid, clearing user data")
             // Session is invalid, clear it
             setStudentData_local(null)
             setStudent(studentData)
           }
         } catch (error) {
-          console.error("[EcoReciclaBUAP] Failed to fetch student data:", error)
+          console.error("[EcoReciclaBUAP] Error fetching student data:", error)
         }
       }
 
       fetchStudentData()
     } else if (!loading && !session) {
-      console.log("[EcoReciclaBUAP] No session, clearing user data")
-      // No session, show public map but show login prompt
+      console.log("[EcoReciclaBUAP] Public visitor - no session")
+      // No session, show public map without fetching user data
       setStudentData_local(null)
       setStudent(studentData)
     }

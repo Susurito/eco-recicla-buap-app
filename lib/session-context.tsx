@@ -23,19 +23,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   // Fetch session from public /api/session endpoint
+  // This runs on initial load to check if user is logged in
+  // Public visitors will get null, authenticated users will get their session data
   const fetchSession = useCallback(async () => {
     try {
       const response = await fetch("/api/session")
       if (response.ok) {
         const data = await response.json()
-        console.log("[SessionProvider] Fetched session:", data)
+        if (data) {
+          console.log("[SessionProvider] User session verified")
+        } else {
+          console.log("[SessionProvider] Public visitor - no session")
+        }
         setSession(data)
       } else {
-        console.log("[SessionProvider] Session endpoint returned", response.status)
+        console.log("[SessionProvider] Session check returned", response.status)
         setSession(null)
       }
     } catch (error) {
-      console.error("[SessionProvider] Failed to fetch session:", error)
+      console.error("[SessionProvider] Error checking session:", error)
       setSession(null)
     } finally {
       setLoading(false)
