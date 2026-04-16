@@ -12,7 +12,6 @@ import {
   studentData,
 } from "@/lib/data"
 import { useSession } from "@/lib/session-context"
-import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import TrashPointPanel from "@/components/trash-point-panel"
@@ -23,7 +22,6 @@ import {
   Leaf,
   LayoutDashboard,
   Star,
-  Shield,
   Menu,
   X,
   MapPin,
@@ -52,7 +50,8 @@ const MapView = dynamic(() => import("@/components/map-view"), {
 export default function EcoReciclaBUAP() {
   const router = useRouter()
   const { session, loading } = useSession()
-  const [isAdmin, setIsAdmin] = useState(false)
+  // Derive isAdmin from session.user.role (from database)
+  const isAdmin = session?.user?.role === "admin"
   const [trashPoints, setTrashPoints] =
     useState<TrashPoint[]>(initialTrashPoints)
   const [selectedPoint, setSelectedPoint] = useState<TrashPoint | null>(null)
@@ -216,19 +215,11 @@ export default function EcoReciclaBUAP() {
         setTrashPoints((prev) => [...prev, newPoint])
         setIsAddingPoint(false)
       } else if (isDrawingPolygon) {
-        setDrawingPoints((prev) => [...prev, [lat, lng]])
-      }
-    },
-    [isAddingPoint, isDrawingPolygon, trashPoints.length]
-  )
-
-  const handleRoleToggle = useCallback(() => {
-    setIsAdmin((prev) => !prev)
-    setSelectedPoint(null)
-    setIsAddingPoint(false)
-    setIsDrawingPolygon(false)
-    setDrawingPoints([])
-  }, [])
+         setDrawingPoints((prev) => [...prev, [lat, lng]])
+       }
+     },
+     [isAddingPoint, isDrawingPolygon, trashPoints.length]
+   )
 
   // Show loading while verifying session
   if (loading) {
@@ -270,10 +261,6 @@ export default function EcoReciclaBUAP() {
               {student.ecoPoints}
             </Badge>
           )}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">Admin</span>
-            <Switch checked={isAdmin} onCheckedChange={handleRoleToggle} />
-          </div>
         </div>
       </header>
 
@@ -309,10 +296,10 @@ export default function EcoReciclaBUAP() {
           </div>
 
           {/* Session status bar */}
-          <div className="border-b px-4 py-3">
+          <div className="border-b px-4 py-3 space-y-3">
             {/* User profile section */}
             {studentData_local ? (
-              <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+              <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
                   {studentData_local.image ? (
                     <img
@@ -328,13 +315,18 @@ export default function EcoReciclaBUAP() {
                   <p className="text-sm font-semibold text-foreground truncate">
                     {studentData_local.name}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    Sesión iniciada
-                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge 
+                      variant="secondary" 
+                      className="text-xs"
+                    >
+                      {isAdmin ? "🔐 Administrador" : "👤 Estudiante"}
+                    </Badge>
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+              <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground shrink-0">
                   <User className="h-5 w-5" />
                 </div>
@@ -342,15 +334,15 @@ export default function EcoReciclaBUAP() {
                   <p className="text-sm font-semibold text-foreground">
                     Sin sesión
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Inicia sesión para continuar
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+                   </p>
+                 </div>
+               </div>
+             )}
+           </div>
 
-          {/* Action buttons - Navigation */}
+           {/* Action buttons - Navigation */}
           <div className="flex items-center justify-center border-b px-4 py-3">
             {studentData_local ? (
               <Link
