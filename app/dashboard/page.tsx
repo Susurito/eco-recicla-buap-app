@@ -1,19 +1,13 @@
-import { verifyStudentSession, verifyAdminSession } from "@/lib/dal"
+import { verifySession } from "@/lib/dal"
 import DashboardClient from "@/components/dashboard-client"
 
 export default async function DashboardPage() {
-  // Verify user is authenticated and is either a student or admin
+  // Verify user is authenticated
   // This will redirect to /login if not authenticated
-  let session
-  let isAdmin = false
-  
-  try {
-    session = await verifyAdminSession()
-    isAdmin = true
-  } catch {
-    // User is not admin, try student
-    session = await verifyStudentSession()
-  }
+  const session = await verifySession()
+
+  // Check if user is admin
+  const isAdmin = session.role === "admin"
 
   // Render the dashboard with user information
   return (
