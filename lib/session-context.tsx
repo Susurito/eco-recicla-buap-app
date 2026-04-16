@@ -55,7 +55,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "auth-logout-signal") {
+        console.log("Logout signal detected, clearing session")
         setSession(null)
+        setLoading(false)
       }
     }
 
@@ -70,8 +72,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       const handleMessage = (event: MessageEvent) => {
         if (event.data.type === "logout") {
+          console.log("Logout broadcast received, clearing session")
           setSession(null)
+          setLoading(false)
         } else if (event.data.type === "session-update") {
+          console.log("Session update broadcast received, refetching")
           fetchSession()
         }
       }
