@@ -189,19 +189,6 @@ export default function DashboardClient({
               {student.ecoPoints} pts
             </Badge>
           )}
-           <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-1.5">
-             <div className="flex items-center gap-1.5">
-               {isAdminToggle ? (
-                 <Shield className="h-3.5 w-3.5 text-primary" />
-               ) : (
-                 <Star className="h-3.5 w-3.5 text-primary" />
-               )}
-              <span className="text-xs font-medium text-foreground">
-                {isAdminToggle ? "Admin" : "Estudiante"}
-              </span>
-            </div>
-            <Switch checked={isAdminToggle} onCheckedChange={setIsAdminToggle} />
-          </div>
         </div>
       </header>
 

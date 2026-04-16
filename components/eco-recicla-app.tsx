@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import Image from "next/image"
@@ -45,6 +46,7 @@ const MapView = dynamic(() => import("@/components/map-view"), {
 })
 
 export default function EcoReciclaBUAP() {
+  const router = useRouter()
   const [isAdmin, setIsAdmin] = useState(false)
   const [trashPoints, setTrashPoints] =
     useState<TrashPoint[]>(initialTrashPoints)
@@ -61,6 +63,7 @@ export default function EcoReciclaBUAP() {
     email: string
     image: string | null
   } | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Load user data from API
   useEffect(() => {
@@ -79,14 +82,21 @@ export default function EcoReciclaBUAP() {
             ...prev,
             ...data.student,
           }))
+        } else {
+          // No session, redirect to login
+          router.push("/login")
         }
       } catch (error) {
         console.error("Failed to fetch user data:", error)
+        // On error, redirect to login
+        router.push("/login")
+      } finally {
+        setIsLoading(false)
       }
     }
 
     fetchUserData()
-  }, [])
+  }, [router])
 
   const handlePointClick = useCallback((point: TrashPoint) => {
     setSelectedPoint(point)
@@ -182,6 +192,18 @@ export default function EcoReciclaBUAP() {
     setIsDrawingPolygon(false)
     setDrawingPoints([])
   }, [])
+
+  // Show loading while verifying session
+  if (isLoading) {
+    return (
+      <div className="flex h-dvh w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <span className="text-sm text-muted-foreground">Verificando sesión...</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-dvh w-full overflow-hidden">
