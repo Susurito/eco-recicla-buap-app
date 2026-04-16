@@ -106,6 +106,58 @@ export async function PATCH(
       )
     }
 
+    // Check if new name already exists (if name is being updated)
+    if (body.name !== undefined && body.name !== trashPoint.name) {
+      const existingByName = await prisma.trashPoint.findFirst({
+        where: {
+          AND: [
+            {
+              name: {
+                equals: body.name,
+                mode: "insensitive",
+              },
+            },
+            {
+              id: { not: id },
+            },
+          ],
+        },
+      })
+
+      if (existingByName) {
+        return NextResponse.json(
+          { error: "Ya existe un contenedor con este nombre" },
+          { status: 409 }
+        )
+      }
+    }
+
+    // Check if new location already exists (if coordinates are being updated)
+    if (
+      (body.lat !== undefined || body.lng !== undefined) &&
+      (body.lat !== trashPoint.lat || body.lng !== trashPoint.lng)
+    ) {
+      const newLat = body.lat !== undefined ? body.lat : trashPoint.lat
+      const newLng = body.lng !== undefined ? body.lng : trashPoint.lng
+
+      const existingByLocation = await prisma.trashPoint.findFirst({
+        where: {
+          AND: [
+            { lat: newLat },
+            { lng: newLng },
+            { id: { not: id } },
+          ],
+        },
+      })
+
+      if (existingByLocation) {
+        return NextResponse.json(
+          { error: "Ya existe un contenedor en esta ubicación" },
+          { status: 409 }
+        )
+      }
+    }
+
     // Prepare update data (only include provided fields)
     const updateData: any = {}
 

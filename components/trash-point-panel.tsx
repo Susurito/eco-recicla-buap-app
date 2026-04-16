@@ -4,7 +4,7 @@ import { type TrashPoint, CATEGORY_COLORS, CATEGORY_LABELS } from "@/lib/data"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { X, MapPin, AlertTriangle, CheckCircle } from "lucide-react"
+import { X, MapPin, AlertTriangle, CheckCircle, Edit2, Trash2 } from "lucide-react"
 import { useState } from "react"
 
 interface TrashPointPanelProps {
@@ -12,6 +12,8 @@ interface TrashPointPanelProps {
   onClose: () => void
   onClassify: (pointId: string, category: string) => void
   isAdmin: boolean
+  onEdit?: (point: TrashPoint) => void
+  onDelete?: (point: TrashPoint) => void
 }
 
 export default function TrashPointPanel({
@@ -19,6 +21,8 @@ export default function TrashPointPanel({
   onClose,
   onClassify,
   isAdmin,
+  onEdit,
+  onDelete,
 }: TrashPointPanelProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [classified, setClassified] = useState(false)
@@ -194,16 +198,36 @@ export default function TrashPointPanel({
                   </div>
                 ))}
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3 text-sm">
-                <span className="text-muted-foreground">
-                  Ultima recoleccion
-                </span>
-                <span className="font-medium text-foreground">
-                  {point.lastCollected}
-                </span>
-              </div>
-            </div>
-          )}
+               <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3 text-sm">
+                 <span className="text-muted-foreground">
+                   Ultima recoleccion
+                 </span>
+                 <span className="font-medium text-foreground">
+                   {point.lastCollected}
+                 </span>
+               </div>
+
+               {/* Admin Actions */}
+               <div className="flex flex-col gap-2 border-t pt-3">
+                 <Button
+                   onClick={() => onEdit?.(point)}
+                   variant="outline"
+                   className="w-full gap-2"
+                 >
+                   <Edit2 className="h-4 w-4" />
+                   Editar
+                 </Button>
+                 <Button
+                   onClick={() => onDelete?.(point)}
+                   variant="destructive"
+                   className="w-full gap-2"
+                 >
+                   <Trash2 className="h-4 w-4" />
+                   Eliminar
+                 </Button>
+               </div>
+             </div>
+           )}
         </div>
       </ScrollArea>
     </div>

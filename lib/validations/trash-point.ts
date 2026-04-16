@@ -86,6 +86,38 @@ export function validateFillLevel(fillLevel?: number): boolean {
 }
 
 /**
+ * Validate that a name is unique among existing trash points
+ */
+export function validateUniqueName(
+  name: string,
+  existingPoints: Array<{ name: string; id?: string }>,
+  excludeId?: string
+): boolean {
+  return !existingPoints.some(
+    (p) =>
+      p.name.toLowerCase() === name.toLowerCase() &&
+      (!excludeId || p.id !== excludeId)
+  )
+}
+
+/**
+ * Validate that a location is unique among existing trash points (exact match, no tolerance)
+ */
+export function validateUniqueLocation(
+  lat: number,
+  lng: number,
+  existingPoints: Array<{ lat: number; lng: number; id?: string }>,
+  excludeId?: string
+): boolean {
+  return !existingPoints.some(
+    (p) =>
+      p.lat === lat &&
+      p.lng === lng &&
+      (!excludeId || p.id !== excludeId)
+  )
+}
+
+/**
  * Validate create trash point input
  */
 export function validateCreateInput(data: any): { valid: boolean; errors: string[] } {

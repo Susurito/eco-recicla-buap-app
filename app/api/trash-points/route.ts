@@ -55,13 +55,35 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if trash point with same name already exists
-    const existingTrashPoint = await prisma.trashPoint.findUnique({
-      where: { id: body.name }, // Using name as identifier
+    const existingByName = await prisma.trashPoint.findFirst({
+      where: {
+        name: {
+          equals: body.name,
+          mode: "insensitive",
+        },
+      },
     })
 
-    if (existingTrashPoint) {
+    if (existingByName) {
       return NextResponse.json(
-        { error: "Trash point with this name already exists" },
+        { error: "Ya existe un contenedor con este nombre" },
+        { status: 409 }
+      )
+    }
+
+    // Check if trash point with same location already exists
+    const existingByLocation = await prisma.trashPoint.findFirst({
+      where: {
+        AND: [
+          { lat: body.lat },
+          { lng: body.lng },
+        ],
+      },
+    })
+
+    if (existingByLocation) {
+      return NextResponse.json(
+        { error: "Ya existe un contenedor en esta ubicación" },
         { status: 409 }
       )
     }

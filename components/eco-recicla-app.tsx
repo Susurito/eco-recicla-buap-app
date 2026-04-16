@@ -16,6 +16,9 @@ import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import TrashPointPanel from "@/components/trash-point-panel"
+import TrashPointModal from "@/components/trash-point-modal"
+import DeleteConfirmDialog from "@/components/delete-confirm-dialog"
+import { toast } from "sonner"
 import {
   Leaf,
   LayoutDashboard,
@@ -65,6 +68,9 @@ export default function EcoReciclaBUAP() {
     email: string
     image: string | null
   } | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create")
+  const [selectedPointForModal, setSelectedPointForModal] = useState<TrashPoint | undefined>()
 
   // Load additional student data when session is available
   // NOTE: This only runs if session exists (logged in)
@@ -146,6 +152,23 @@ export default function EcoReciclaBUAP() {
     },
     []
   )
+
+  const handleEditPoint = useCallback((point: TrashPoint) => {
+    setSelectedPointForModal(point)
+    setModalMode("edit")
+    setModalOpen(true)
+  }, [])
+
+  const handleDeletePoint = useCallback((point: TrashPoint) => {
+    // The delete dialog will be opened from TrashPointPanel
+    // We just need to handle the refetch after deletion
+  }, [])
+
+  const handlePointsUpdate = useCallback(() => {
+    // Refetch trash points after create/edit/delete
+    // For now, we'll just close the selected point
+    setSelectedPoint(null)
+  }, [])
 
   const handleAddPoint = useCallback(() => {
     setIsAddingPoint((prev) => !prev)
@@ -364,6 +387,8 @@ export default function EcoReciclaBUAP() {
                 onClose={handleClosePanel}
                 onClassify={handleClassify}
                 isAdmin={isAdmin}
+                onEdit={handleEditPoint}
+                onDelete={handleDeletePoint}
               />
             ) : (
               <div className="flex flex-col">
@@ -412,6 +437,49 @@ export default function EcoReciclaBUAP() {
                       Ver estadisticas
                     </Link>
                   </div>
+
+                  {/* Admin actions */}
+                  {isAdmin && (
+                    <div className="flex flex-col gap-2 mb-4 pb-3 border-b">
+                      <Button
+                        onClick={handleAddPoint}
+                        variant={isAddingPoint ? "default" : "outline"}
+                        className="w-full gap-2"
+                        size="sm"
+                      >
+                        {isAddingPoint ? (
+                          <>
+                            <CheckCircle className="h-4 w-4" />
+                            Click en el mapa
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4" />
+                            Agregar Contenedor
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={handleDrawPolygon}
+                        variant={isDrawingPolygon ? "default" : "outline"}
+                        className="w-full gap-2"
+                        size="sm"
+                      >
+                        {isDrawingPolygon ? (
+                          <>
+                            <CheckCircle className="h-4 w-4" />
+                            Dibujando...
+                          </>
+                        ) : (
+                          <>
+                            <Pentagon className="h-4 w-4" />
+                            Definir Área
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+
                   <div className="flex flex-col gap-2">
                     {trashPoints.map((point) => (
                       <button
@@ -531,6 +599,23 @@ export default function EcoReciclaBUAP() {
           className="fixed inset-0 z-30 bg-foreground/20 md:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
+      )}
+
+      {/* Modals for admin */}
+      {isAdmin && (
+        <>
+          <TrashPointModal
+            isOpen={modalOpen}
+            mode={modalMode}
+            point={selectedPointForModal}
+            trashPoints={trashPoints}
+            onClose={() => {
+              setModalOpen(false)
+              setSelectedPointForModal(undefined)
+            }}
+            onSuccess={handlePointsUpdate}
+          />
+        </>
       )}
     </div>
   )
