@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import Image from "next/image"
@@ -29,6 +29,7 @@ import {
   CheckCircle,
   Globe,
   Phone,
+  User,
 } from "lucide-react"
 
 const MapView = dynamic(() => import("@/components/map-view"), {
@@ -55,6 +56,37 @@ export default function EcoReciclaBUAP() {
   const [student, setStudent] = useState(studentData)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [userData, setUserData] = useState<{
+    name: string
+    email: string
+    image: string | null
+  } | null>(null)
+
+  // Load user data from API
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch("/api/students/me")
+        if (response.ok) {
+          const data = await response.json()
+          setUserData({
+            name: data.user.name || "Usuario",
+            email: data.user.email || "",
+            image: data.user.image || null,
+          })
+          // Also update student data
+          setStudent((prev) => ({
+            ...prev,
+            ...data.student,
+          }))
+        }
+      } catch (error) {
+        console.error("Failed to fetch user data:", error)
+      }
+    }
+
+    fetchUserData()
+  }, [])
 
   const handlePointClick = useCallback((point: TrashPoint) => {
     setSelectedPoint(point)
@@ -219,6 +251,31 @@ export default function EcoReciclaBUAP() {
 
           {/* Role toggle bar */}
           <div className="border-b px-4 py-3">
+            {/* User profile section */}
+            {userData && (
+              <div className="mb-3 flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
+                  {userData.image ? (
+                    <img
+                      src={userData.image}
+                      alt={userData.name}
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-5 w-5" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {userData.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {userData.email}
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
               <div className="flex items-center gap-2">
                 {isAdmin ? (
