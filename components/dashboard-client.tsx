@@ -1,11 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import {
-  initialTrashPoints,
-  studentData,
-  prizes,
+  type TrashPoint,
   CATEGORY_COLORS,
   CATEGORY_LABELS,
 } from "@/lib/data"
@@ -52,6 +50,15 @@ import {
   LogOut,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+
+interface Prize {
+  id: string
+  name: string
+  description: string
+  cost: number
+  icon: string
+  category: "internet" | "academic" | "cafeteria"
+}
 
 function getPrizeIcon(iconName: string) {
   switch (iconName) {
@@ -128,17 +135,6 @@ function getCategoryColor(category: string) {
   }
 }
 
-// Weekly trend mock data
-const weeklyTrend = [
-  { day: "Lun", plastico: 45, papel: 32, organico: 28, general: 20 },
-  { day: "Mar", plastico: 52, papel: 28, organico: 35, general: 18 },
-  { day: "Mie", plastico: 38, papel: 40, organico: 22, general: 25 },
-  { day: "Jue", plastico: 60, papel: 35, organico: 30, general: 22 },
-  { day: "Vie", plastico: 48, papel: 42, organico: 38, general: 28 },
-  { day: "Sab", plastico: 20, papel: 15, organico: 12, general: 10 },
-  { day: "Dom", plastico: 10, papel: 8, organico: 5, general: 6 },
-]
-
 export default function DashboardClient({ 
   isAdmin, 
   userId,
@@ -151,8 +147,70 @@ export default function DashboardClient({
   userImage?: string | null
 }) {
   const [isAdminToggle, setIsAdminToggle] = useState(isAdmin)
-  const trashPoints = initialTrashPoints
-  const student = studentData
+  const [trashPoints, setTrashPoints] = useState<TrashPoint[]>([])
+  const [prizes, setPrizes] = useState<Prize[]>([])
+  const [weeklyTrend, setWeeklyTrend] = useState([
+    { day: "Lun", plastico: 0, papel: 0, organico: 0, general: 0 },
+    { day: "Mar", plastico: 0, papel: 0, organico: 0, general: 0 },
+    { day: "Mie", plastico: 0, papel: 0, organico: 0, general: 0 },
+    { day: "Jue", plastico: 0, papel: 0, organico: 0, general: 0 },
+    { day: "Vie", plastico: 0, papel: 0, organico: 0, general: 0 },
+    { day: "Sab", plastico: 0, papel: 0, organico: 0, general: 0 },
+    { day: "Dom", plastico: 0, papel: 0, organico: 0, general: 0 },
+  ])
+  const [loading, setLoading] = useState(true)
+
+  // Crear objeto student desde props
+  const student = {
+    boleta: userId || "",
+    name: userName || "Usuario",
+    ecoPoints: 0,
+    classifications: 0,
+    level: "Principiante",
+  }
+  useEffect(() => {
+    if (!isAdmin) {
+      setLoading(false)
+      return
+    }
+
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true)
+
+        // Fetch trash points
+        const pointsRes = await fetch("/api/trash-points?limit=100")
+        const pointsData = await pointsRes.json()
+        
+        if (pointsData.data && Array.isArray(pointsData.data)) {
+          setTrashPoints(pointsData.data)
+        }
+
+        // Fetch prizes
+        const prizesRes = await fetch("/api/prizes?limit=100")
+        const prizesData = await prizesRes.json()
+        
+        if (prizesData.data && Array.isArray(prizesData.data)) {
+          setPrizes(prizesData.data)
+        }
+
+        // Fetch trends
+        const trendsRes = await fetch("/api/dashboard/trends")
+        const trendsData = await trendsRes.json()
+        
+        if (trendsData.weeklyTrend && Array.isArray(trendsData.weeklyTrend)) {
+          setWeeklyTrend(trendsData.weeklyTrend)
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error)
+        // Keep using mock data on error
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [isAdmin])
 
   // Aggregate stats
   const totalCollected = trashPoints.reduce(
@@ -259,6 +317,14 @@ export default function DashboardClient({
 
           {isAdminToggle ? (
             <>
+              {/* Loading indicator for admin */}
+              {loading && (
+                <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+                  <span>Cargando datos del panel...</span>
+                </div>
+              )}
+
               {/* Admin KPIs */}
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                 <Card>
@@ -581,121 +647,133 @@ export default function DashboardClient({
           ) : (
             <>
               {/* Student view */}
-              <div className="grid gap-4 lg:grid-cols-3">
-                {/* Student profile card */}
-                <Card className="lg:col-span-1">
-                   <CardContent className="p-0">
-                     <div className="rounded-t-xl bg-gradient-to-br from-primary to-primary/80 p-5 text-primary-foreground">
-                       <div className="flex items-center gap-3">
-                         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-foreground/20 overflow-hidden">
-                           {userImage ? (
-                             <img 
-                               src={userImage} 
-                               alt={userName}
-                               className="h-full w-full object-cover"
-                             />
-                           ) : (
-                             <Leaf className="h-7 w-7" />
-                           )}
+              <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+                {/* Student profile card - Hero design */}
+                <Card className="lg:col-span-1 overflow-hidden row-span-3">
+                   <CardContent className="p-0 h-full">
+                     <div className="relative bg-gradient-to-br from-emerald-500 via-emerald-400 to-emerald-500 text-white h-full flex flex-col">
+                       {/* Background pattern */}
+                       <div className="absolute inset-0 opacity-10">
+                         <div className="absolute inset-0" style={{backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")"}} />
+                       </div>
+                       
+                       {/* Content */}
+                       <div className="relative z-10 flex flex-col h-full p-8">
+                         {/* Top section */}
+                         <div className="flex items-center gap-4 mb-8">
+                           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/20 overflow-hidden border-3 border-white/30 backdrop-blur-sm flex-shrink-0">
+                             {userImage ? (
+                               <img 
+                                 src={userImage} 
+                                 alt={userName}
+                                 className="h-full w-full object-cover"
+                               />
+                             ) : (
+                               <Leaf className="h-10 w-10 text-white" />
+                             )}
+                           </div>
+                           <div className="flex-1 min-w-0">
+                             <h2 className="text-3xl font-bold leading-tight">{userName}</h2>
+                             <p className="text-white/80 text-sm mt-1">
+                               Boleta: {student.boleta}
+                             </p>
+                           </div>
                          </div>
-                         <div className="flex-1">
-                           <h3 className="text-lg font-bold">{userName}</h3>
-                           <p className="text-sm text-primary-foreground/80">
-                             Boleta: {student.boleta}
-                           </p>
+                         
+                         {/* Level and classifications */}
+                         <div className="flex items-center gap-2 mb-8 flex-wrap">
+                           <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm px-4 py-2 text-sm">
+                             {student.level}
+                           </Badge>
+                           <span className="text-white/80 text-sm font-medium">
+                             {student.classifications} clasificaciones
+                           </span>
+                         </div>
+                         
+                         {/* Divider */}
+                         <div className="h-px bg-white/20 mb-8" />
+                         
+                         {/* Eco-Points section - grow to fill space */}
+                         <div className="flex-1 flex flex-col justify-between">
+                           <div>
+                             <div className="flex items-baseline gap-2 mb-3">
+                               <Star className="h-5 w-5 text-white flex-shrink-0" />
+                               <span className="text-white/90 text-sm font-medium">Eco-Points</span>
+                             </div>
+                             <p className="text-5xl font-bold text-white mb-6">
+                               {student.ecoPoints.toLocaleString()}
+                             </p>
+                           </div>
+                           
+                           <div className="space-y-3">
+                             <div>
+                               <div className="flex items-center justify-between mb-3">
+                                 <span className="text-white/80 text-xs font-medium">Progreso hacia siguiente nivel</span>
+                                 <span className="text-white/80 text-xs font-medium">
+                                   {Math.round((student.ecoPoints / nextLevel) * 100)}%
+                                 </span>
+                               </div>
+                               <Progress value={progress} className="h-4" />
+                               <div className="mt-2 flex items-center justify-between text-xs text-white/70">
+                                 <span>Actual: {student.ecoPoints} pts</span>
+                                 <span>Meta: {nextLevel} pts</span>
+                               </div>
+                             </div>
+                           </div>
                          </div>
                        </div>
-                      <div className="mt-4 flex items-center gap-3">
-                        <Badge className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30">
-                          {student.level}
-                        </Badge>
-                        <span className="text-sm text-primary-foreground/80">
-                          {student.classifications} clasificaciones
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-4 p-5">
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-foreground flex items-center gap-2">
-                            <Star className="h-4 w-4 text-primary" />
-                            Eco-Points
-                          </span>
-                          <span className="text-2xl font-bold text-primary">
-                            {student.ecoPoints.toLocaleString()}
-                          </span>
-                        </div>
-                        <Progress value={progress} className="h-2.5" />
-                        <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Nivel actual</span>
-                          <span>
-                            {student.ecoPoints} / {nextLevel} pts
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Stats grid */}
-                <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
-                  <Card>
-                    <CardContent className="flex items-center gap-4 p-5">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                        <Recycle className="h-6 w-6 text-primary" />
+                {/* Stats grid - 3 columns with colors */}
+                <div className="grid gap-6 grid-cols-1 auto-rows-max lg:col-span-1">
+                  {/* Clasificaciones - Verde/Emerald */}
+                  <Card className="overflow-hidden transition-all hover:shadow-lg hover:scale-105 duration-300">
+                    <CardContent className="flex items-center gap-4 p-6">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-500/15 flex-shrink-0">
+                        <Recycle className="h-7 w-7 text-emerald-600" />
                       </div>
-                      <div>
-                        <p className="text-3xl font-bold text-foreground leading-none">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-4xl font-bold text-emerald-600 leading-none">
                           {student.classifications}
                         </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-2 text-sm text-muted-foreground font-medium">
                           Clasificaciones totales
                         </p>
                       </div>
                     </CardContent>
                   </Card>
-                  <Card>
-                    <CardContent className="flex items-center gap-4 p-5">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10">
-                        <TrendingUp className="h-6 w-6 text-amber-600" />
+                  
+                  {/* Ranking - Amarillo/Amber */}
+                  <Card className="overflow-hidden transition-all hover:shadow-lg hover:scale-105 duration-300">
+                    <CardContent className="flex items-center gap-4 p-6">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/15 flex-shrink-0">
+                        <TrendingUp className="h-7 w-7 text-amber-600" />
                       </div>
-                      <div>
-                        <p className="text-3xl font-bold text-foreground leading-none">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-4xl font-bold text-amber-600 leading-none">
                           #12
                         </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-2 text-sm text-muted-foreground font-medium">
                           Ranking general
                         </p>
                       </div>
                     </CardContent>
                   </Card>
-                  <Card>
-                    <CardContent className="flex items-center gap-4 p-5">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10">
-                        <Users className="h-6 w-6 text-blue-600" />
+                  
+                  {/* Días Consecutivos - Azul/Sky */}
+                  <Card className="overflow-hidden transition-all hover:shadow-lg hover:scale-105 duration-300">
+                    <CardContent className="flex items-center gap-4 p-6">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-sky-500/15 flex-shrink-0">
+                        <CalendarDays className="h-7 w-7 text-sky-600" />
                       </div>
-                      <div>
-                        <p className="text-3xl font-bold text-foreground leading-none">
-                          234
-                        </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Estudiantes activos
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="flex items-center gap-4 p-5">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                        <CalendarDays className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-3xl font-bold text-foreground leading-none">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-4xl font-bold text-sky-600 leading-none">
                           14
                         </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Dias consecutivos
+                        <p className="mt-2 text-sm text-muted-foreground font-medium">
+                          Días consecutivos
                         </p>
                       </div>
                     </CardContent>
