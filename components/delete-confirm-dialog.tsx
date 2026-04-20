@@ -1,21 +1,22 @@
 "use client"
 
+import { useState } from "react"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 
 interface DeleteConfirmDialogProps {
   isOpen: boolean
   pointName: string
-  onConfirm: () => Promise<void>
+  onConfirm: () => void | Promise<void>
   onCancel: () => void
-  isLoading: boolean
+  isLoading?: boolean
 }
 
 export default function DeleteConfirmDialog({
@@ -23,31 +24,50 @@ export default function DeleteConfirmDialog({
   pointName,
   onConfirm,
   onCancel,
-  isLoading,
+  isLoading = false,
 }: DeleteConfirmDialogProps) {
+  const [loading, setLoading] = useState(false)
+
+  const handleConfirm = async () => {
+    setLoading(true)
+    try {
+      await onConfirm()
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <AlertDialog open={isOpen} onOpenChange={onCancel}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>¿Eliminar contenedor?</AlertDialogTitle>
-          <AlertDialogDescription>
-            ¿Estás seguro de que deseas eliminar el contenedor "{pointName}"?
+    <Dialog open={isOpen} onOpenChange={(open: boolean) => {
+      if (!open && !loading) {
+        onCancel()
+      }
+    }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>¿Eliminar?</DialogTitle>
+          <DialogDescription>
+            ¿Estás seguro de que deseas eliminar "{pointName}"?
             Esta acción no se puede deshacer.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <div className="flex gap-2 justify-end">
-          <AlertDialogCancel disabled={isLoading} onClick={onCancel}>
-            Cancelar
-          </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="bg-destructive hover:bg-destructive/90"
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            disabled={loading || isLoading}
+            onClick={onCancel}
           >
-            {isLoading ? "Eliminando..." : "Eliminar"}
-          </AlertDialogAction>
-        </div>
-      </AlertDialogContent>
-    </AlertDialog>
+            Cancelar
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleConfirm}
+            disabled={loading || isLoading}
+          >
+            {loading || isLoading ? "Eliminando..." : "Eliminar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

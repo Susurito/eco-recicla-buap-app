@@ -8,14 +8,26 @@ import Image from "next/image"
 import {
   type TrashPoint,
   type PolygonArea,
-  initialTrashPoints,
-  studentData,
+  BUAP_CENTER,
+  BUAP_ZOOM,
 } from "@/lib/data"
 import { useSession } from "@/lib/session-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import TrashPointPanel from "@/components/trash-point-panel"
 import TrashPointModal from "@/components/trash-point-modal"
+import PolygonPanel from "@/components/polygon-panel"
+import PolygonModal from "@/components/polygon-modal"
 import DeleteConfirmDialog from "@/components/delete-confirm-dialog"
 import { toast } from "sonner"
 import {
@@ -53,13 +65,19 @@ export default function EcoReciclaBUAP() {
   // Derive isAdmin from session.user.role (from database)
   const isAdmin = session?.user?.role === "admin"
   const [trashPoints, setTrashPoints] =
-    useState<TrashPoint[]>(initialTrashPoints)
+    useState<TrashPoint[]>([])
   const [selectedPoint, setSelectedPoint] = useState<TrashPoint | null>(null)
   const [polygonAreas, setPolygonAreas] = useState<PolygonArea[]>([])
   const [isAddingPoint, setIsAddingPoint] = useState(false)
   const [isDrawingPolygon, setIsDrawingPolygon] = useState(false)
   const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([])
-  const [student, setStudent] = useState(studentData)
+  const [student, setStudent] = useState({
+    boleta: "",
+    name: "",
+    ecoPoints: 0,
+    classifications: 0,
+    level: "Principiante",
+  })
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [studentData_local, setStudentData_local] = useState<{
@@ -70,6 +88,24 @@ export default function EcoReciclaBUAP() {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<"create" | "edit">("create")
   const [selectedPointForModal, setSelectedPointForModal] = useState<TrashPoint | undefined>()
+  
+  // Estado para eliminación de contenedores
+  const [deletePointConfirmOpen, setDeletePointConfirmOpen] = useState(false)
+  const [pointToDelete, setPointToDelete] = useState<TrashPoint | null>(null)
+  
+  // Estado para gestión de polígonos/áreas
+  const [selectedPolygon, setSelectedPolygon] = useState<PolygonArea | null>(null)
+  const [polygonModalOpen, setPolygonModalOpen] = useState(false)
+  const [selectedPolygonForModal, setSelectedPolygonForModal] = useState<PolygonArea | undefined>()
+   const [deletePolygonConfirmOpen, setDeletePolygonConfirmOpen] = useState(false)
+   const [polygonToDelete, setPolygonToDelete] = useState<PolygonArea | null>(null)
+   const [showPolygonNameDialog, setShowPolygonNameDialog] = useState(false)
+   const [polygonNameInput, setPolygonNameInput] = useState("")
+   const [polygonDescInput, setPolygonDescInput] = useState("")
+   
+   // Estado para editar forma del polígono (MOD 3B)
+   const [polygonBeingEdited, setPolygonBeingEdited] = useState<PolygonArea | null>(null)
+   const [polygonOriginalCoordinates, setPolygonOriginalCoordinates] = useState<[number, number][] | null>(null)
 
   // Load additional student data when session is available
   // NOTE: This only runs if session exists (logged in)
@@ -101,7 +137,13 @@ export default function EcoReciclaBUAP() {
             console.log("[EcoReciclaBUAP] Session invalid, clearing user data")
             // Session is invalid, clear it
             setStudentData_local(null)
-            setStudent(studentData)
+            setStudent({
+              boleta: "",
+              name: "",
+              ecoPoints: 0,
+              classifications: 0,
+              level: "Principiante",
+            })
           }
         } catch (error) {
           console.error("[EcoReciclaBUAP] Error fetching student data:", error)
@@ -113,9 +155,107 @@ export default function EcoReciclaBUAP() {
       console.log("[EcoReciclaBUAP] Public visitor - no session")
       // No session, show public map without fetching user data
       setStudentData_local(null)
-      setStudent(studentData)
+      setStudent({
+        boleta: "",
+        name: "",
+        ecoPoints: 0,
+        classifications: 0,
+        level: "Principiante",
+      })
     }
   }, [session, loading])
+
+  // Fetch trash points from database
+  useEffect(() => {
+    if (loading) return
+
+    console.log("[EcoReciclaBUAP] Fetching trash points from database...")
+    const fetchTrashPoints = async () => {
+      try {
+        const response = await fetch("/api/trash-points?limit=100")
+        console.log("[EcoReciclaBUAP] API Response status:", response.status)
+        
+        if (response.ok) {
+          const data = await response.json()
+          console.log(`[EcoReciclaBUAP] API returned ${data.data.length} trash points`)
+          console.log("[EcoReciclaBUAP] First point:", data.data[0])
+          
+           // Map BD response to TrashPoint format with coordinate validation
+           const mappedPoints = data.data.map((point: any) => {
+             // Validate and provide defaults for coordinates
+             const lat = typeof point.lat === 'number' && !isNaN(point.lat) ? point.lat : BUAP_CENTER[0]
+             const lng = typeof point.lng === 'number' && !isNaN(point.lng) ? point.lng : BUAP_CENTER[1]
+             
+             // Log warning if coordinates were invalid
+             if (typeof point.lat !== 'number' || isNaN(point.lat) || typeof point.lng !== 'number' || isNaN(point.lng)) {
+               console.warn(
+                 `[MOD4] Punto "${point.name}" tiene coordenadas inválidas (lat: ${point.lat}, lng: ${point.lng}). Usando centro de BUAP como default.`
+               )
+             }
+             
+             return {
+               id: point.id,
+               name: point.name,
+               lat: lat,
+               lng: lng,
+               detectedObject: point.detectedObject,
+               detectedImage: point.detectedImage,
+               category: point.category || null,
+               fillLevel: point.fillLevel || 0,
+               lastCollected: point.lastCollected,
+               alert: point.alert || null,
+               todayStats: point.todayStats || { plastico: 0, papel: 0, organico: 0, general: 0 },
+             }
+           })
+           
+           console.log("[EcoReciclaBUAP] Mapped points:", mappedPoints)
+           console.log(`[MOD4] Total valid coordinates: ${mappedPoints.length}`)
+           setTrashPoints(mappedPoints)
+        } else {
+          console.error("[EcoReciclaBUAP] Failed to fetch trash points:", response.status)
+          const errorData = await response.json().catch(() => ({}))
+          console.error("[EcoReciclaBUAP] Error data:", errorData)
+        }
+      } catch (error) {
+        console.error("[EcoReciclaBUAP] Error fetching trash points:", error)
+      }
+    }
+
+    fetchTrashPoints()
+  }, [loading])
+
+  // Fetch polygon areas from database
+  useEffect(() => {
+    if (loading) return
+
+    console.log("[EcoReciclaBUAP] Fetching polygon areas from database...")
+    const fetchPolygonAreas = async () => {
+      try {
+        const response = await fetch("/api/polygon-areas?limit=100")
+        if (response.ok) {
+          const data = await response.json()
+          console.log(`[EcoReciclaBUAP] Loaded ${data.data.length} polygon areas`)
+          // Transform API response to component format
+          const transformedAreas = data.data.map((area: any) => ({
+            id: area.id,
+            name: area.name,
+            description: area.description || "",
+            color: area.color,
+            points: area.points.map((p: any) => [p.lat, p.lng] as [number, number]),
+          }))
+          setPolygonAreas(transformedAreas)
+        } else {
+          console.error("[EcoReciclaBUAP] Failed to fetch polygon areas:", response.status)
+          // Keep empty array as fallback
+        }
+      } catch (error) {
+        console.error("[EcoReciclaBUAP] Error fetching polygon areas:", error)
+        // Keep empty array as fallback
+      }
+    }
+
+    fetchPolygonAreas()
+  }, [loading])
 
   const handlePointClick = useCallback((point: TrashPoint) => {
     setSelectedPoint(point)
@@ -158,16 +298,94 @@ export default function EcoReciclaBUAP() {
     setModalOpen(true)
   }, [])
 
+  const handleDeletePointClick = useCallback((point: TrashPoint) => {
+    setPointToDelete(point)
+    setDeletePointConfirmOpen(true)
+  }, [])
+
+  const confirmDeletePoint = useCallback(() => {
+    if (!pointToDelete) return
+    // Make DELETE request to API
+    const deleteTrashPoint = async () => {
+      try {
+        const response = await fetch(`/api/trash-points/${pointToDelete.id}`, {
+          method: "DELETE",
+        })
+        if (response.ok) {
+          setTrashPoints(prev => prev.filter(p => p.id !== pointToDelete.id))
+          setSelectedPoint(null)
+          toast.success("Contenedor eliminado correctamente")
+        } else {
+          toast.error("Error al eliminar el contenedor")
+        }
+      } catch (error) {
+        console.error("[EcoReciclaBUAP] Error deleting trash point:", error)
+        toast.error("Error al eliminar el contenedor")
+      }
+    }
+    deleteTrashPoint()
+    setDeletePointConfirmOpen(false)
+    setPointToDelete(null)
+  }, [pointToDelete])
+
   const handleDeletePoint = useCallback((point: TrashPoint) => {
     // The delete dialog will be opened from TrashPointPanel
     // We just need to handle the refetch after deletion
   }, [])
 
-  const handlePointsUpdate = useCallback(() => {
-    // Refetch trash points after create/edit/delete
-    // For now, we'll just close the selected point
-    setSelectedPoint(null)
-  }, [])
+   const handlePointsUpdate = useCallback(() => {
+     // Refetch trash points after create/edit
+     const refetchTrashPoints = async () => {
+       try {
+         const response = await fetch("/api/trash-points?limit=100")
+         if (response.ok) {
+           const data = await response.json()
+           // Map BD response to TrashPoint format with coordinate validation (MOD4)
+           const mappedPoints = data.data.map((point: any) => {
+             // Validate and provide defaults for coordinates
+             const lat = typeof point.lat === 'number' && !isNaN(point.lat) ? point.lat : BUAP_CENTER[0]
+             const lng = typeof point.lng === 'number' && !isNaN(point.lng) ? point.lng : BUAP_CENTER[1]
+             
+             // Log warning if coordinates were invalid
+             if (typeof point.lat !== 'number' || isNaN(point.lat) || typeof point.lng !== 'number' || isNaN(point.lng)) {
+               console.warn(
+                 `[MOD4] Punto "${point.name}" tiene coordenadas inválidas (lat: ${point.lat}, lng: ${point.lng}). Usando centro de BUAP como default.`
+               )
+             }
+             
+             return {
+               id: point.id,
+               name: point.name,
+               lat: lat,
+               lng: lng,
+               detectedObject: point.detectedObject,
+               detectedImage: point.detectedImage,
+               category: point.category || null,
+               fillLevel: point.fillLevel || 0,
+               lastCollected: point.lastCollected,
+               alert: point.alert || null,
+               todayStats: point.todayStats || { plastico: 0, papel: 0, organico: 0, general: 0 },
+             }
+           })
+           setTrashPoints(mappedPoints)
+           
+           // Update selectedPoint if it was being edited
+           if (selectedPoint) {
+             const updatedPoint = mappedPoints.find((p: TrashPoint) => p.id === selectedPoint.id)
+             if (updatedPoint) {
+               setSelectedPoint(updatedPoint)
+             }
+           }
+           
+           console.log("[EcoReciclaBUAP] Trash points refetched after edit/create")
+         }
+       } catch (error) {
+         console.error("[EcoReciclaBUAP] Error refetching trash points:", error)
+       }
+     }
+     refetchTrashPoints()
+     setModalOpen(false)
+   }, [selectedPoint])
 
   const handleAddPoint = useCallback(() => {
     setIsAddingPoint((prev) => !prev)
@@ -175,45 +393,264 @@ export default function EcoReciclaBUAP() {
     setDrawingPoints([])
   }, [])
 
-  const handleDrawPolygon = useCallback(() => {
-    if (isDrawingPolygon && drawingPoints.length >= 3) {
-      const newPolygon: PolygonArea = {
-        id: `area-${Date.now()}`,
-        name: `Area de Optimizacion ${polygonAreas.length + 1}`,
-        points: drawingPoints,
-        color: "#8b5cf6",
+   const handleDrawPolygon = useCallback(() => {
+     if (isDrawingPolygon && drawingPoints.length >= 3) {
+       handleCompletePolygonDrawing()
+     } else if (isDrawingPolygon) {
+       // Si estamos editando y cancelas, restaurar forma anterior
+       if (polygonBeingEdited && polygonOriginalCoordinates) {
+         setDrawingPoints(polygonOriginalCoordinates)
+         setPolygonBeingEdited(null)
+         setPolygonOriginalCoordinates(null)
+         toast.info("Edición cancelada. Se restauró la forma anterior del polígono.")
+       } else {
+         setDrawingPoints([])
+       }
+       setIsDrawingPolygon(false)
+     } else {
+       setIsDrawingPolygon(true)
+       setIsAddingPoint(false)
+       setDrawingPoints([])
+     }
+   }, [isDrawingPolygon, drawingPoints, polygonAreas.length, polygonBeingEdited, polygonOriginalCoordinates])
+
+   const handleCompletePolygonDrawing = () => {
+     if (drawingPoints.length >= 3) {
+       // Si estamos editando un polígono, guardar la nueva forma directamente
+       if (polygonBeingEdited) {
+         updatePolygonShape()
+       } else {
+         // Si estamos creando uno nuevo, mostrar diálogo de nombre
+         setShowPolygonNameDialog(true)
+         setPolygonNameInput(`Área de Optimización ${polygonAreas.length + 1}`)
+         setPolygonDescInput("")
+       }
+     }
+   }
+
+   // Helper para guardar cambios de forma del polígono (MOD 3B)
+   const updatePolygonShape = async () => {
+     if (!polygonBeingEdited || drawingPoints.length < 3) return
+
+     try {
+       const response = await fetch(`/api/polygon-areas/${polygonBeingEdited.id}`, {
+         method: "PATCH",
+         headers: {
+           "Content-Type": "application/json",
+         },
+         body: JSON.stringify({
+           name: polygonBeingEdited.name,
+           description: polygonBeingEdited.description,
+           color: polygonBeingEdited.color,
+           points: drawingPoints.map(([lat, lng]) => ({ lat, lng })),
+         }),
+       })
+
+       if (response.ok) {
+         // Actualizar el polígono en el estado
+         const updatedPolygon: PolygonArea = {
+           ...polygonBeingEdited,
+           points: drawingPoints,
+         }
+         setPolygonAreas(prev =>
+           prev.map(p => p.id === polygonBeingEdited.id ? updatedPolygon : p)
+         )
+         setSelectedPolygon(updatedPolygon)
+         
+         // Limpiar estado de edición
+         setPolygonBeingEdited(null)
+         setPolygonOriginalCoordinates(null)
+         setIsDrawingPolygon(false)
+         setDrawingPoints([])
+
+         toast.success("Forma del polígono actualizada correctamente")
+       } else {
+         throw new Error("Error updating polygon shape")
+       }
+     } catch (error) {
+       console.error("[MOD3B] Error updating polygon shape:", error)
+       toast.error("Error al actualizar la forma del polígono")
+       
+       // Restaurar forma anterior si hay error
+       if (polygonOriginalCoordinates) {
+         setDrawingPoints(polygonOriginalCoordinates)
+         toast.info("Cambios descartados. Se restauró la forma anterior.")
+       }
+     }
+   }
+
+  const handlePolygonClick = (polygon: PolygonArea) => {
+    setSelectedPolygon(polygon)
+    setSidebarOpen(true)
+  }
+
+  const handleEditPolygon = (polygon: PolygonArea) => {
+    setSelectedPolygonForModal(polygon)
+    setPolygonModalOpen(true)
+  }
+
+  const handleDeletePolygonClick = (polygon: PolygonArea) => {
+    setPolygonToDelete(polygon)
+    setDeletePolygonConfirmOpen(true)
+  }
+
+  const confirmDeletePolygon = useCallback(() => {
+    if (!polygonToDelete) return
+    // Make DELETE request to API
+    const deletePolygon = async () => {
+      try {
+        const response = await fetch(`/api/polygon-areas/${polygonToDelete.id}`, {
+          method: "DELETE",
+        })
+        if (response.ok) {
+          setPolygonAreas(prev => prev.filter(p => p.id !== polygonToDelete.id))
+          setSelectedPolygon(null)
+          toast.success("Área eliminada correctamente")
+        } else {
+          toast.error("Error al eliminar el área")
+        }
+      } catch (error) {
+        console.error("[EcoReciclaBUAP] Error deleting polygon:", error)
+        toast.error("Error al eliminar el área")
       }
-      setPolygonAreas((prev) => [...prev, newPolygon])
-      setDrawingPoints([])
-      setIsDrawingPolygon(false)
-    } else if (isDrawingPolygon) {
-      setDrawingPoints([])
-      setIsDrawingPolygon(false)
-    } else {
-      setIsDrawingPolygon(true)
-      setIsAddingPoint(false)
-      setDrawingPoints([])
     }
-  }, [isDrawingPolygon, drawingPoints, polygonAreas.length])
+    deletePolygon()
+    setDeletePolygonConfirmOpen(false)
+    setPolygonToDelete(null)
+  }, [polygonToDelete])
+
+  const handleUpdatePolygon = (updatedPolygon: PolygonArea) => {
+    // Make PATCH request to API
+    const updatePolygonAPI = async () => {
+      try {
+        const response = await fetch(`/api/polygon-areas/${updatedPolygon.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: updatedPolygon.name,
+            description: updatedPolygon.description,
+            color: updatedPolygon.color,
+          }),
+        })
+        if (response.ok) {
+          setPolygonAreas(prev =>
+            prev.map(p => p.id === updatedPolygon.id ? updatedPolygon : p)
+          )
+          setPolygonModalOpen(false)
+          setSelectedPolygon(null)
+          toast.success("Área actualizada correctamente")
+        } else {
+          toast.error("Error al actualizar el área")
+        }
+      } catch (error) {
+        console.error("[EcoReciclaBUAP] Error updating polygon:", error)
+        toast.error("Error al actualizar el área")
+      }
+    }
+     updatePolygonAPI()
+   }
+
+   // Handler para editar forma del polígono (MOD 3B)
+   const handleEditPolygonShape = (polygon: PolygonArea) => {
+     // Guardar coordenadas originales en caso de cancelación
+     setPolygonOriginalCoordinates(polygon.points)
+     setPolygonBeingEdited(polygon)
+     
+     // Entrar en modo dibujo
+     setIsDrawingPolygon(true)
+     setDrawingPoints(polygon.points)
+     setIsAddingPoint(false)
+     
+     // Cerrar modal de edición
+     setPolygonModalOpen(false)
+     
+     toast.info("Modo de edición de polígono: dibuja la nueva forma. Usa el botón 'Completar' para guardar o 'Cancelar' para deshacer cambios.")
+   }
+
+   const confirmCreatePolygon = () => {
+    // Make POST request to API
+    const createPolygonAPI = async () => {
+      try {
+        const response = await fetch("/api/polygon-areas", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: polygonNameInput || `Área ${polygonAreas.length + 1}`,
+            description: polygonDescInput,
+            color: "#8b5cf6",
+            points: drawingPoints.map(([lat, lng]) => ({ lat, lng })),
+          }),
+        })
+        if (response.ok) {
+          const data = await response.json()
+          // Transform response to component format
+          const newPolygon: PolygonArea = {
+            id: data.polygonArea.id,
+            name: data.polygonArea.name,
+            description: data.polygonArea.description || "",
+            color: data.polygonArea.color,
+            points: data.polygonArea.points.map((p: any) => [p.lat, p.lng] as [number, number]),
+          }
+          setPolygonAreas(prev => [...prev, newPolygon])
+          setDrawingPoints([])
+          setIsDrawingPolygon(false)
+          setShowPolygonNameDialog(false)
+          setPolygonNameInput("")
+          setPolygonDescInput("")
+          toast.success("Área creada correctamente")
+        } else {
+          const error = await response.json()
+          toast.error(error.error || "Error al crear el área")
+        }
+      } catch (error) {
+        console.error("[EcoReciclaBUAP] Error creating polygon:", error)
+        toast.error("Error al crear el área")
+      }
+    }
+    createPolygonAPI()
+  }
 
   const handleMapClick = useCallback(
     (lat: number, lng: number) => {
       if (isAddingPoint) {
-        const newPoint: TrashPoint = {
-          id: `tp-${Date.now()}`,
-          name: `Contenedor Nuevo ${trashPoints.length + 1}`,
-          lat,
-          lng,
-          detectedObject: "Sin deteccion",
-          detectedImage: "",
-          category: null,
-          fillLevel: 0,
-          lastCollected: "Nuevo",
-          alert: null,
-          todayStats: { plastico: 0, papel: 0, organico: 0, general: 0 },
+        // Create trash point via API
+        const createTrashPoint = async () => {
+          try {
+            const response = await fetch("/api/trash-points", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                name: `Contenedor Nuevo ${trashPoints.length + 1}`,
+                lat,
+                lng,
+                detectedObject: "Sin deteccion",
+                detectedImage: "/images/trash-default.jpg",
+                fillLevel: 0,
+                lastCollected: new Date().toISOString(),
+              }),
+            })
+            if (response.ok) {
+              const data = await response.json()
+              setTrashPoints((prev) => [...prev, data.trashPoint])
+              setIsAddingPoint(false)
+              toast.success("Contenedor creado correctamente")
+            } else {
+              const error = await response.json()
+              console.error("[EcoReciclaBUAP] Error response:", error)
+              toast.error(error.error || "Error al crear el contenedor")
+            }
+          } catch (error) {
+            console.error("[EcoReciclaBUAP] Error creating trash point:", error)
+            toast.error("Error al crear el contenedor")
+          }
         }
-        setTrashPoints((prev) => [...prev, newPoint])
-        setIsAddingPoint(false)
+        createTrashPoint()
       } else if (isDrawingPolygon) {
          setDrawingPoints((prev) => [...prev, [lat, lng]])
        }
@@ -234,7 +671,7 @@ export default function EcoReciclaBUAP() {
   }
 
   return (
-    <div className="flex h-dvh w-full overflow-hidden">
+    <div className="flex h-dvh w-full overflow-visible">
       {/* Mobile header */}
       <header className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between border-b bg-card px-4 md:hidden">
         <div className="flex items-center gap-2">
@@ -380,7 +817,15 @@ export default function EcoReciclaBUAP() {
                 onClassify={handleClassify}
                 isAdmin={isAdmin}
                 onEdit={handleEditPoint}
-                onDelete={handleDeletePoint}
+                onDelete={handleDeletePointClick}
+              />
+            ) : selectedPolygon && isAdmin ? (
+              <PolygonPanel
+                polygon={selectedPolygon}
+                onClose={() => setSelectedPolygon(null)}
+                isAdmin={isAdmin}
+                onEdit={handleEditPolygon}
+                onDelete={handleDeletePolygonClick}
               />
             ) : (
               <div className="flex flex-col">
@@ -404,16 +849,23 @@ export default function EcoReciclaBUAP() {
                 <div className="flex items-start gap-4 px-4 py-3 border-b">
                   <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                   <p className="text-sm text-foreground leading-relaxed">
-                    Cd Universitaria, 72592 Heroica Puebla de Zaragoza, Pue.
+                    {/* TODO: Obtener ubicación desde configuración */}
+                    Ubicación no disponible
                   </p>
                 </div>
                 <div className="flex items-center gap-4 px-4 py-3 border-b">
                   <Globe className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <p className="text-sm text-primary">buap.mx</p>
+                  <p className="text-sm text-primary">
+                    {/* TODO: Obtener website desde configuración */}
+                    —
+                  </p>
                 </div>
                 <div className="flex items-center gap-4 px-4 py-3 border-b">
                   <Phone className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <p className="text-sm text-foreground">222 229 5500</p>
+                  <p className="text-sm text-foreground">
+                    {/* TODO: Obtener teléfono desde configuración */}
+                    —
+                  </p>
                 </div>
 
                 {/* Container list */}
@@ -422,12 +874,14 @@ export default function EcoReciclaBUAP() {
                     <h3 className="text-sm font-semibold text-foreground">
                       Contenedores ({trashPoints.length})
                     </h3>
-                    <Link
-                      href="/dashboard"
-                      className="text-xs text-primary hover:underline"
-                    >
-                      Ver estadisticas
-                    </Link>
+                    {isAdmin && (
+                      <Link
+                        href="/dashboard"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Ver estadisticas
+                      </Link>
+                    )}
                   </div>
 
                   {/* Admin actions */}
@@ -472,44 +926,82 @@ export default function EcoReciclaBUAP() {
                     </div>
                   )}
 
-                  <div className="flex flex-col gap-2">
-                    {trashPoints.map((point) => (
-                      <button
-                        key={point.id}
-                        onClick={() => handlePointClick(point)}
-                        className="flex items-center justify-between rounded-lg bg-muted/50 p-3 text-left transition-colors hover:bg-muted"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className="h-3 w-3 rounded-full shrink-0"
-                            style={{
-                              backgroundColor:
-                                point.fillLevel > 80
-                                  ? "#ef4444"
-                                  : point.fillLevel > 50
-                                    ? "#eab308"
-                                    : "#10b981",
-                            }}
-                          />
-                          <div>
-                            <p className="text-sm font-medium text-foreground">
-                              {point.name}
-                            </p>
-                            {point.alert && (
-                              <p className="text-xs text-destructive">
-                                {point.alert}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <span className="text-sm font-semibold text-muted-foreground shrink-0 ml-2">
-                          {point.fillLevel}%
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+                   <div className="flex flex-col gap-2">
+                     {trashPoints.map((point) => (
+                       <button
+                         key={point.id}
+                         onClick={() => handlePointClick(point)}
+                         className="flex items-center justify-between rounded-lg bg-muted/50 p-3 text-left transition-colors hover:bg-muted"
+                       >
+                         <div className="flex items-center gap-2.5">
+                           <div
+                             className="h-3 w-3 rounded-full shrink-0"
+                             style={{
+                               backgroundColor:
+                                 point.fillLevel > 80
+                                   ? "#ef4444"
+                                   : point.fillLevel > 50
+                                     ? "#eab308"
+                                     : "#10b981",
+                             }}
+                           />
+                           <div>
+                             <p className="text-sm font-medium text-foreground">
+                               {point.name}
+                             </p>
+                             {point.alert && (
+                               <p className="text-xs text-destructive">
+                                 {point.alert}
+                               </p>
+                             )}
+                           </div>
+                         </div>
+                         <span className="text-sm font-semibold text-muted-foreground shrink-0 ml-2">
+                           {point.fillLevel}%
+                         </span>
+                       </button>
+                     ))}
+                   </div>
+                 </div>
+
+                 {/* Áreas de Optimización */}
+                 {isAdmin && polygonAreas.length > 0 && (
+                   <div className="px-4 py-3 border-t">
+                     <h3 className="text-sm font-semibold text-foreground mb-3">
+                       Áreas de Optimización ({polygonAreas.length})
+                     </h3>
+                     <div className="flex flex-col gap-2">
+                       {polygonAreas.map((area) => (
+                         <button
+                           key={area.id}
+                           onClick={() => handlePolygonClick(area)}
+                           className="flex items-center justify-between rounded-lg bg-muted/50 p-3 text-left transition-colors hover:bg-muted"
+                         >
+                           <div className="flex items-center gap-2.5">
+                             <div
+                               className="h-3 w-3 rounded-full shrink-0"
+                               style={{ backgroundColor: area.color }}
+                             />
+                             <div>
+                               <p className="text-sm font-medium text-foreground">
+                                 {area.name}
+                               </p>
+                               {area.description && (
+                                 <p className="text-xs text-muted-foreground truncate">
+                                   {area.description}
+                                 </p>
+                               )}
+                             </div>
+                           </div>
+                           <span className="text-xs text-muted-foreground shrink-0 ml-2">
+                             {area.points.length}p
+                           </span>
+                         </button>
+                       ))}
+                     </div>
+                   </div>
+                 )}
+               </div>
             )}
           </div>
         </div>
@@ -577,6 +1069,7 @@ export default function EcoReciclaBUAP() {
           polygonAreas={polygonAreas}
           selectedPointId={selectedPoint?.id || null}
           onPointClick={handlePointClick}
+          onPolygonClick={handlePolygonClick}
           isAdmin={isAdmin}
           isAddingPoint={isAddingPoint}
           isDrawingPolygon={isDrawingPolygon}
@@ -593,22 +1086,110 @@ export default function EcoReciclaBUAP() {
         />
       )}
 
-      {/* Modals for admin */}
-      {isAdmin && (
-        <>
-          <TrashPointModal
-            isOpen={modalOpen}
-            mode={modalMode}
-            point={selectedPointForModal}
-            trashPoints={trashPoints}
-            onClose={() => {
-              setModalOpen(false)
-              setSelectedPointForModal(undefined)
-            }}
-            onSuccess={handlePointsUpdate}
-          />
-        </>
-      )}
+       {/* Modals for admin */}
+       {isAdmin && (
+         <>
+           <TrashPointModal
+              isOpen={modalOpen}
+              mode={modalMode}
+              point={selectedPointForModal}
+              trashPoints={trashPoints}
+              onClose={() => {
+                setModalOpen(false)
+                setSelectedPointForModal(undefined)
+              }}
+              onSuccess={handlePointsUpdate}
+            />
+           
+           {/* Delete Confirm Dialog for Trash Points */}
+           <DeleteConfirmDialog
+             isOpen={deletePointConfirmOpen}
+             pointName={pointToDelete?.name || ""}
+             onConfirm={confirmDeletePoint}
+             onCancel={() => {
+               setDeletePointConfirmOpen(false)
+               setPointToDelete(null)
+             }}
+              isLoading={false}
+            />
+
+            {/* Dialog para crear nueva área con nombre */}
+            <Dialog open={showPolygonNameDialog} onOpenChange={setShowPolygonNameDialog}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Crear Nueva Área</DialogTitle>
+                  <DialogDescription>
+                    Proporciona un nombre y descripción para el área de optimización
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="polygon-name">Nombre del Área *</Label>
+                    <Input
+                      id="polygon-name"
+                      value={polygonNameInput}
+                      onChange={(e) => setPolygonNameInput(e.target.value)}
+                      placeholder="Ej: Sector de Cafetería"
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="polygon-desc">Descripción</Label>
+                    <Input
+                      id="polygon-desc"
+                      value={polygonDescInput}
+                      onChange={(e) => setPolygonDescInput(e.target.value)}
+                      placeholder="Ej: Zona con mayor concentración de residuos"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowPolygonNameDialog(false)
+                      setDrawingPoints([])
+                      setIsDrawingPolygon(false)
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={confirmCreatePolygon}
+                    disabled={!polygonNameInput.trim()}
+                  >
+                    Crear Área
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Delete confirmation dialog para áreas */}
+            <DeleteConfirmDialog
+              isOpen={deletePolygonConfirmOpen}
+              pointName={polygonToDelete?.name || ""}
+              onConfirm={confirmDeletePolygon}
+              onCancel={() => {
+                setDeletePolygonConfirmOpen(false)
+                setPolygonToDelete(null)
+              }}
+              isLoading={false}
+            />
+
+             {/* Modal para editar área */}
+             <PolygonModal
+               isOpen={polygonModalOpen}
+               polygon={selectedPolygonForModal}
+               onClose={() => setPolygonModalOpen(false)}
+               onSave={handleUpdatePolygon}
+               onEditShape={handleEditPolygonShape}
+             />
+          </>
+        )}
     </div>
   )
 }

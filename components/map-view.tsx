@@ -68,6 +68,7 @@ interface MapViewProps {
   polygonAreas: PolygonArea[]
   selectedPointId: string | null
   onPointClick: (point: TrashPoint) => void
+  onPolygonClick?: (polygon: PolygonArea) => void
   isAdmin: boolean
   isAddingPoint: boolean
   isDrawingPolygon: boolean
@@ -80,6 +81,7 @@ export default function MapView({
   polygonAreas,
   selectedPointId,
   onPointClick,
+  onPolygonClick,
   isAdmin,
   isAddingPoint,
   isDrawingPolygon,
@@ -89,8 +91,9 @@ export default function MapView({
   const mapRef = useRef<L.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
   
-  // Corregido: Usamos Record para persistencia por ID y que no desaparezcan
-  const markersRef = useRef<Record<string, L.Marker>>({})
+  // Usando array en lugar de Record para evitar problemas de sincronización
+  // Los marcadores se recrean completamente cada vez, evitando el bug de desaparición
+  const markersRef = useRef<Array<{ id: string; marker: L.Marker }>>([])
   const polygonsRef = useRef<L.Polygon[]>([])
   const drawingPolylineRef = useRef<L.Polyline | null>(null)
   const drawingMarkersRef = useRef<L.CircleMarker[]>([])
@@ -138,49 +141,45 @@ export default function MapView({
     return () => { mapRef.current?.off("click", handler) }
   }, [])
 
-  // Update markers (Función principal corregida)
-  useEffect(() => {
-    if (!mapRef.current) return
+   // Update markers - Estrategia de reemplazo total (igual que polygonAreas)
+   // Esto evita el bug donde desaparecen los contenedores en la primera carga
+   useEffect(() => {
+     if (!mapRef.current) return
 
-    const currentMarkers = markersRef.current;
+     console.log("🗺️ MapView - Actualizando marcadores. Puntos recibidos:", trashPoints.length)
+     if (trashPoints.length > 0) {
+       console.log("📍 Primer punto:", trashPoints[0]?.name, "Coords:", trashPoints[0]?.lat, trashPoints[0]?.lng)
+     }
 
-    // 1. Eliminar marcadores que ya no existen en los datos
-    const currentPointIds = new Set(trashPoints.map(p => p.id));
-    Object.keys(currentMarkers).forEach(id => {
-      if (!currentPointIds.has(id)) {
-        currentMarkers[id].remove();
-        delete currentMarkers[id];
-      }
-    });
+     // 1. Remover todos los marcadores previos
+     markersRef.current.forEach(({ marker }) => marker.remove())
+     markersRef.current = []
 
-    // 2. Crear o Actualizar marcadores
-    trashPoints.forEach((point) => {
-      const isSelected = selectedPointId === point.id;
-      const icon = createTrashIcon(point.fillLevel, point.alert, isSelected);
+     // 2. Crear nuevos marcadores
+     trashPoints.forEach((point) => {
+       const isSelected = selectedPointId === point.id
+       const icon = createTrashIcon(point.fillLevel, point.alert, isSelected)
 
-      if (currentMarkers[point.id]) {
-        // Solo actualizamos si ya existe (Evita el parpadeo/desaparición)
-        currentMarkers[point.id].setIcon(icon);
-        currentMarkers[point.id].setZIndexOffset(isSelected ? 1000 : 0);
-      } else {
-        // Crear nuevo si no existe
-        const marker = L.marker([point.lat, point.lng], { icon })
-          .addTo(mapRef.current!)
-          .bindTooltip(point.name, {
-            direction: "top",
-            offset: [0, -20],
-            className: "custom-tooltip",
-          });
+       const marker = L.marker([point.lat, point.lng], { icon })
+         .addTo(mapRef.current!)
+         .bindTooltip(point.name, {
+           direction: "top",
+           offset: [0, -20],
+           className: "custom-tooltip",
+         })
 
-        marker.on("click", (e) => {
-          L.DomEvent.stopPropagation(e); // Evita que el clic se propague al mapa
-          onPointClick(point);
-        });
+       marker.on("click", (e) => {
+         L.DomEvent.stopPropagation(e)
+         onPointClick(point)
+       })
 
-        currentMarkers[point.id] = marker;
-      }
-    });
-  }, [trashPoints, selectedPointId, onPointClick])
+       marker.setZIndexOffset(isSelected ? 1000 : 0)
+       markersRef.current.push({ id: point.id, marker })
+       console.log("✅ Marcador creado:", point.name)
+     })
+     
+     console.log("📊 Total de marcadores en mapa:", markersRef.current.length)
+   }, [trashPoints, selectedPointId, onPointClick])
 
   // Update polygons & drawing preview (Mantenido igual)
   useEffect(() => {
@@ -194,11 +193,22 @@ export default function MapView({
         fillOpacity: 0.15,
         weight: 2,
         dashArray: "6 4",
+        interactive: true,
       }).addTo(mapRef.current!)
-        .bindTooltip(area.name, { direction: "center", className: "custom-tooltip" });
+        .bindTooltip(area.name, { 
+          direction: "center", 
+          className: "custom-tooltip" 
+        })
+
+      // Agregar click handler para polígonos
+      polygon.on("click", (e) => {
+        L.DomEvent.stopPropagation(e)
+        onPolygonClick?.(area)
+      })
+
       polygonsRef.current.push(polygon)
     })
-  }, [polygonAreas])
+  }, [polygonAreas, onPolygonClick])
 
   useEffect(() => {
     if (!mapRef.current) return

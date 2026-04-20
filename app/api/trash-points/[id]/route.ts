@@ -189,8 +189,10 @@ export async function PATCH(
     )
   } catch (error) {
     console.error("[trash-points PATCH] Error:", error)
+    console.error("[trash-points PATCH] Error message:", error instanceof Error ? error.message : String(error))
+    console.error("[trash-points PATCH] Stack:", error instanceof Error ? error.stack : "No stack available")
     return NextResponse.json(
-      { error: "Failed to update trash point" },
+      { error: "Failed to update trash point", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
   }

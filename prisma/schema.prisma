@@ -38,7 +38,8 @@ model TrashPoint {
   lastCollected  String
   alert          String?
 
-  todayStats     TodayStats?
+  todayStats      TodayStats?
+  historicalStats HistoricalStats[]
 }
 
 model TodayStats {
@@ -50,6 +51,21 @@ model TodayStats {
 
   trashPoint   TrashPoint @relation(fields: [trashPointId], references: [id])
   trashPointId String     @unique
+}
+
+model HistoricalStats {
+  id         Int      @id @default(autoincrement())
+  date       DateTime @default(now())
+  plastico   Int      @default(0)
+  papel      Int      @default(0)
+  organico   Int      @default(0)
+  general    Int      @default(0)
+
+  trashPoint   TrashPoint @relation(fields: [trashPointId], references: [id], onDelete: Cascade)
+  trashPointId String
+
+  @@unique([trashPointId, date])
+  @@index([date])
 }
 
 model Student {
@@ -74,9 +90,10 @@ model Prize {
 }
 
 model PolygonArea {
-  id    String @id
-  name  String
-  color String
+  id          String @id
+  name        String
+  color       String
+  description String?
 
   points PolygonPoint[]
 }

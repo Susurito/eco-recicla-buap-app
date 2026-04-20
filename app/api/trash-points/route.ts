@@ -181,6 +181,11 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    console.log(`[trash-points GET] Retrieved ${trashPoints.length} trash points from database`)
+    if (trashPoints.length > 0) {
+      console.log(`[trash-points GET] First point: ID=${trashPoints[0].id}, Name=${trashPoints[0].name}, Lat=${trashPoints[0].lat}, Lng=${trashPoints[0].lng}, HasTodayStats=${!!trashPoints[0].todayStats}`)
+    }
+
     return NextResponse.json(
       {
         data: trashPoints,

@@ -27,8 +27,6 @@ export default function TrashPointPanel({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [classified, setClassified] = useState(false)
 
-  const categories = ["plastico", "papel", "organico", "general"]
-
   const handleConfirm = () => {
     if (!selectedCategory) return
     onClassify(point.id, selectedCategory)
@@ -115,8 +113,8 @@ export default function TrashPointPanel({
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Clasificar residuo
               </p>
-              <div className="grid grid-cols-2 gap-2">
-                {categories.map((cat) => (
+               <div className="grid grid-cols-2 gap-2">
+                 {Object.keys(CATEGORY_LABELS).map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
@@ -207,25 +205,25 @@ export default function TrashPointPanel({
                  </span>
                </div>
 
-               {/* Admin Actions */}
-               <div className="flex flex-col gap-2 border-t pt-3">
-                 <Button
-                   onClick={() => onEdit?.(point)}
-                   variant="outline"
-                   className="w-full gap-2"
-                 >
-                   <Edit2 className="h-4 w-4" />
-                   Editar
-                 </Button>
-                 <Button
-                   onClick={() => onDelete?.(point)}
-                   variant="destructive"
-                   className="w-full gap-2"
-                 >
-                   <Trash2 className="h-4 w-4" />
-                   Eliminar
-                 </Button>
-               </div>
+                {/* Admin Actions */}
+                <div className="flex gap-2 border-t pt-3">
+                  <Button
+                    onClick={() => onEdit?.(point)}
+                    variant="outline"
+                    className="flex-1 gap-2"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                    Editar
+                  </Button>
+                  <Button
+                    onClick={() => onDelete?.(point)}
+                    variant="destructive"
+                    className="flex-1 gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Eliminar
+                  </Button>
+                </div>
              </div>
            )}
         </div>

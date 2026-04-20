@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { type TrashPoint } from "@/lib/data"
+import { type TrashPoint, CATEGORY_LABELS } from "@/lib/data"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -16,13 +16,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { AlertCircle, Upload, X } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-
-const CATEGORIES = [
-  { value: "plastico", label: "Plástico" },
-  { value: "papel", label: "Papel" },
-  { value: "organico", label: "Orgánico" },
-  { value: "general", label: "General" },
-]
 
 const VALID_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -103,8 +96,8 @@ export default function TrashPointForm({
       newErrors.detectedObject = "La descripción del objeto es requerida"
     }
 
-    // Validate image
-    if (!formData.detectedImage) {
+    // Validate image (only required for new creations)
+    if (mode === "create" && !formData.detectedImage) {
       newErrors.detectedImage = "La imagen es requerida"
     }
 
@@ -281,9 +274,9 @@ export default function TrashPointForm({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {CATEGORIES.map((cat) => (
-              <SelectItem key={cat.value} value={cat.value}>
-                {cat.label}
+            {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -335,62 +328,75 @@ export default function TrashPointForm({
         )}
       </div>
 
-      {/* Image Upload */}
-      <div className="flex flex-col gap-2">
-        <Label>Imagen</Label>
-        
-        {imagePreview ? (
-          <div className="relative">
-            <img
-              src={imagePreview}
-              alt="Preview"
-              className="h-40 w-full rounded-lg border border-border object-cover"
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute right-2 top-2 bg-background/80 hover:bg-background"
-              onClick={handleClearImage}
-              disabled={isLoading}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <div
-              className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border p-8 hover:bg-muted/50"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="h-6 w-6 text-muted-foreground" />
-              <div className="text-center">
-                <p className="text-sm font-medium">Haz clic para subir imagen</p>
-                <p className="text-xs text-muted-foreground">
-                  JPG, PNG o WebP (máx 5MB)
-                </p>
-              </div>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={handleImageUpload}
-              className="hidden"
-              disabled={isLoading}
-            />
-          </div>
-        )}
-        
-        {errors.detectedImage && (
-          <Alert variant="destructive" className="p-2">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="text-xs">
-              {errors.detectedImage}
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
+       {/* Image Upload */}
+       <div className="flex flex-col gap-2">
+         <Label>Imagen {mode === "create" && <span className="text-destructive">*</span>}</Label>
+         
+         {imagePreview ? (
+           <div className="relative">
+             <img
+               src={imagePreview}
+               alt="Preview"
+               className="h-40 w-full rounded-lg border border-border object-cover"
+             />
+             <div className="absolute right-2 top-2 flex gap-1">
+               <Button
+                 type="button"
+                 variant="secondary"
+                 size="sm"
+                 className="gap-1"
+                 onClick={() => fileInputRef.current?.click()}
+                 disabled={isLoading}
+               >
+                 <Upload className="h-3 w-3" />
+                 Cambiar
+               </Button>
+               <Button
+                 type="button"
+                 variant="ghost"
+                 size="icon"
+                 className="bg-background/80 hover:bg-background"
+                 onClick={handleClearImage}
+                 disabled={isLoading}
+               >
+                 <X className="h-4 w-4" />
+               </Button>
+             </div>
+           </div>
+         ) : (
+           <div className="flex flex-col gap-2">
+             <div
+               className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border p-8 hover:bg-muted/50"
+               onClick={() => fileInputRef.current?.click()}
+             >
+               <Upload className="h-6 w-6 text-muted-foreground" />
+               <div className="text-center">
+                 <p className="text-sm font-medium">Haz clic para subir imagen</p>
+                 <p className="text-xs text-muted-foreground">
+                   JPG, PNG o WebP (máx 5MB)
+                 </p>
+               </div>
+             </div>
+             <input
+               ref={fileInputRef}
+               type="file"
+               accept="image/jpeg,image/png,image/webp"
+               onChange={handleImageUpload}
+               className="hidden"
+               disabled={isLoading}
+             />
+           </div>
+         )}
+         
+         {errors.detectedImage && (
+           <Alert variant="destructive" className="p-2">
+             <AlertCircle className="h-4 w-4" />
+             <AlertDescription className="text-xs">
+               {errors.detectedImage}
+             </AlertDescription>
+           </Alert>
+         )}
+       </div>
 
       {/* Alert (Optional) */}
       <div className="flex flex-col gap-2">
@@ -410,7 +416,7 @@ export default function TrashPointForm({
       {/* Submit Button */}
       <Button
         type="submit"
-        disabled={isLoading}
+        disabled={isLoading || Object.keys(errors).length > 0}
         className="w-full"
       >
         {isLoading ? "Guardando..." : mode === "create" ? "Crear Contenedor" : "Actualizar Contenedor"}

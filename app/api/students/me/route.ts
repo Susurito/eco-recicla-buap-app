@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
 
       student = await prisma.student.create({
         data: {
-          name: session.user.name || "Usuario",
           boleta,
           userId: session.user.id,
           ecoPoints: 0,
