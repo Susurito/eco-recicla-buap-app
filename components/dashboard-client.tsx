@@ -401,6 +401,7 @@ export default function DashboardClient({
                   </CardHeader>
                   <CardContent>
                     <ChartContainer
+                      id="dashboard-bar-chart"
                       config={{ value: { label: "Cantidad" } }}
                       className="h-[260px]"
                     >
@@ -438,6 +439,7 @@ export default function DashboardClient({
                   </CardHeader>
                   <CardContent>
                     <ChartContainer
+                      id="dashboard-pie-chart"
                       config={{ value: { label: "Cantidad" } }}
                       className="h-[220px]"
                     >
@@ -494,6 +496,7 @@ export default function DashboardClient({
                   </CardHeader>
                   <CardContent>
                     <ChartContainer
+                      id="dashboard-area-chart"
                       config={{
                         plastico: { label: "Plastico", color: CATEGORY_COLORS.plastico },
                         papel: { label: "Papel", color: CATEGORY_COLORS.papel },

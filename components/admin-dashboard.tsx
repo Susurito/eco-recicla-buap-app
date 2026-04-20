@@ -281,6 +281,7 @@ export default function AdminDashboard({
             </CardHeader>
             <CardContent>
               <ChartContainer
+                id="admin-bar-chart"
                 config={{
                   value: { label: "Cantidad" },
                 }}
@@ -320,6 +321,7 @@ export default function AdminDashboard({
             </CardHeader>
             <CardContent>
               <ChartContainer
+                id="admin-pie-chart"
                 config={{
                   value: { label: "Cantidad" },
                 }}
