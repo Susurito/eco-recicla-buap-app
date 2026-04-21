@@ -36,7 +36,11 @@ export default function TrashPointPanel({
   const [aiPrediction, setAiPrediction] = useState<any>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [modelAvailable, setModelAvailable] = useState(true)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [cameraActive, setCameraActive] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
   // Cargar modelo al montar el componente
   useEffect(() => {
@@ -52,6 +56,13 @@ export default function TrashPointPanel({
       }
     }
     loadModel()
+
+    // Limpiar cámara al desmontar
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop())
+      }
+    }
   }, [])
 
   // Normalizar texto para comparación
@@ -59,7 +70,108 @@ export default function TrashPointPanel({
     return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   }
 
-  // Manejar subida de imagen
+  // Configurar video cuando la cámara se activa
+  useEffect(() => {
+    if (cameraActive && videoRef.current && streamRef.current) {
+      const video = videoRef.current
+      video.srcObject = streamRef.current
+      video.onloadedmetadata = () => {
+        video.play().catch((error) => {
+          console.error("Error reproduciendo video:", error)
+        })
+      }
+    }
+  }, [cameraActive])
+
+  // Iniciar cámara
+  const startCamera = async () => {
+    try {
+      setCameraError(null)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "environment", // Cámara trasera en móviles
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      })
+
+      streamRef.current = stream
+      setCameraActive(true)
+    } catch (error) {
+      console.error("Error accediendo a la cámara:", error)
+      setCameraError("No se pudo acceder a la cámara. Verifica los permisos.")
+      setCameraActive(false)
+    }
+  }
+
+  // Detener cámara
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+    setCameraActive(false)
+  }
+
+  // Capturar foto desde el video
+  const capturePhotoFromCamera = async () => {
+    if (!videoRef.current || !canvasRef.current || !model) return
+
+    try {
+      setAnalyzing(true)
+
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      const context = canvas.getContext("2d")
+
+      if (!context) return
+
+      // Esperar a que el video esté listo
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        await new Promise((resolve) => {
+          setTimeout(() => resolve(null), 500)
+        })
+      }
+
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+
+      // Dibujar frame actual del video
+      context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+      // Convertir canvas a imagen
+      const imageUrl = canvas.toDataURL("image/jpeg", 0.95)
+      setCapturedImage(imageUrl)
+      setAiPrediction(null)
+
+      // Predecir con el modelo
+      const img = document.createElement("img")
+      img.src = imageUrl
+
+      await new Promise((resolve) => (img.onload = resolve))
+
+      try {
+        const predictions = await model.predict(img)
+        const best = predictions.reduce((a: any, b: any) =>
+          a.probability > b.probability ? a : b
+        )
+        setAiPrediction(best)
+      } catch (error) {
+        console.error("Error prediciendo imagen:", error)
+        setAiPrediction(null)
+      }
+
+      // Cerrar cámara después de capturar
+      stopCamera()
+    } catch (error) {
+      console.error("Error capturando foto:", error)
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
+  // Manejar subida de imagen desde archivo
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !model) return
@@ -87,11 +199,6 @@ export default function TrashPointPanel({
     } finally {
       setAnalyzing(false)
     }
-  }
-
-  // Abrir selector de archivo
-  const handleOpenCamera = () => {
-    fileInputRef.current?.click()
   }
 
   const handleConfirm = () => {
@@ -208,28 +315,90 @@ export default function TrashPointPanel({
           {!isAdmin && (
             <div className="flex flex-col gap-2">
               <input
-                ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 onChange={handleImageUpload}
                 className="hidden"
+                id="file-input"
               />
-              <Button
-                onClick={handleOpenCamera}
-                variant="outline"
-                className="w-full gap-2"
-              >
-                📷 Tomar / Subir foto
-              </Button>
 
-              {/* Mostrar imagen subida */}
+              {cameraError && (
+                <div className="rounded-lg bg-red-100 p-3 text-red-700 text-sm">
+                  {cameraError}
+                </div>
+              )}
+
+              {cameraActive ? (
+                <>
+                  <div className="relative w-full rounded-lg overflow-hidden bg-black border">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      muted
+                      playsInline
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        height: "auto",
+                        aspectRatio: "16/9",
+                        objectFit: "cover",
+                      }}
+                    />
+                    <canvas
+                      ref={canvasRef}
+                      className="hidden"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={capturePhotoFromCamera}
+                      disabled={analyzing}
+                      className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
+                    >
+                      📸 Capturar foto
+                    </Button>
+                    <Button
+                      onClick={stopCamera}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={startCamera}
+                    disabled={!modelAvailable}
+                    className="flex-1 gap-2 bg-primary"
+                  >
+                    📷 Abrir cámara
+                  </Button>
+                  <Button
+                    onClick={() => document.getElementById("file-input")?.click()}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    📁 Subir foto
+                  </Button>
+                </div>
+              )}
+
+              {/* Mostrar imagen capturada */}
               {capturedImage && (
-                <div className="flex flex-col items-center gap-2 rounded-lg bg-muted/30 p-3">
+                <div className="flex flex-col items-center gap-2 rounded-lg bg-muted/30 p-4">
                   <img
                     src={capturedImage}
-                    alt="Imagen subida"
-                    className="max-w-[200px] h-auto rounded-lg border"
+                    alt="Foto capturada"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "300px",
+                      width: "auto",
+                      height: "auto",
+                    }}
+                    className="rounded-lg border"
                   />
                 </div>
               )}
