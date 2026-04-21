@@ -850,21 +850,21 @@ export default function EcoReciclaBUAP() {
                   <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                   <p className="text-sm text-foreground leading-relaxed">
                     {/* TODO: Obtener ubicación desde configuración */}
-                    Ubicación no disponible
+                    Benemérita Universidad Autónoma de Puebla
                   </p>
                 </div>
                 <div className="flex items-center gap-4 px-4 py-3 border-b">
                   <Globe className="h-5 w-5 text-muted-foreground shrink-0" />
                   <p className="text-sm text-primary">
                     {/* TODO: Obtener website desde configuración */}
-                    —
+                    https://www.cs.buap.mx/
                   </p>
                 </div>
                 <div className="flex items-center gap-4 px-4 py-3 border-b">
                   <Phone className="h-5 w-5 text-muted-foreground shrink-0" />
                   <p className="text-sm text-foreground">
                     {/* TODO: Obtener teléfono desde configuración */}
-                    —
+                    +52 (222) 2295500
                   </p>
                 </div>
 

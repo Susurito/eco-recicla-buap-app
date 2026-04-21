@@ -19,12 +19,19 @@ enum Category {
   general
 }
 
-enum PrizeCategory {
-  internet
-  academic
-  cafeteria
+model PrizeCategory {
+  id          String @id @default(cuid())
+  name        String @unique
+  description String?
+  color       String @default("#3b82f6")
+  
+  prizes Prize[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([name])
 }
-
 
 model TrashPoint {
   id             String   @id
@@ -49,7 +56,7 @@ model TodayStats {
   organico   Int
   general    Int
 
-  trashPoint   TrashPoint @relation(fields: [trashPointId], references: [id])
+  trashPoint   TrashPoint @relation(fields: [trashPointId], references: [id], onDelete: Cascade)
   trashPointId String     @unique
 }
 
@@ -82,11 +89,18 @@ model Student {
 
 model Prize {
   id          String @id
-  name        String
+  name        String @unique
   description String
   cost        Int
   icon        String
-  category    PrizeCategory
+  
+  categoryId String
+  category   PrizeCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([categoryId])
 }
 
 model PolygonArea {
