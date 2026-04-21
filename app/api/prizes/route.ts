@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from "next/server"
  *   "description": string,
  *   "cost": number (positive integer),
  *   "icon": string (lucide-react icon name),
- *   "category": "internet" | "academic" | "cafeteria"
+ *   "categoryId": string (ID of the category)
  * }
  */
 export async function POST(request: NextRequest) {
@@ -38,9 +38,12 @@ export async function POST(request: NextRequest) {
     // Parse request body
     const body = await request.json().catch(() => ({}))
 
+    console.log("[prizes POST] Request body:", JSON.stringify(body))
+
     // Validate input
     const validation = validateCreatePrizeInput(body)
     if (!validation.valid) {
+      console.error("[prizes POST] Validation errors:", validation.errors)
       return NextResponse.json(
         {
           error: "Invalid input",
@@ -50,17 +53,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if category exists
+    const category = await prisma.prizeCategory.findUnique({
+      where: { id: body.categoryId },
+    })
+
+    if (!category) {
+      console.error("[prizes POST] Category not found:", body.categoryId)
+      return NextResponse.json(
+        { error: "La categoría especificada no existe" },
+        { status: 404 }
+      )
+    }
+
     // Check if prize with same name already exists
-    const existingByName = await prisma.prize.findFirst({
-      where: {
-        name: {
-          equals: body.name,
-          mode: "insensitive",
-        },
-      },
+    const existingByName = await prisma.prize.findUnique({
+      where: { name: body.name.trim() },
     })
 
     if (existingByName) {
+      console.error("[prizes POST] Prize with same name already exists:", body.name)
       return NextResponse.json(
         { error: "Ya existe un premio con este nombre" },
         { status: 409 }
@@ -74,11 +86,14 @@ export async function POST(request: NextRequest) {
     const prize = await prisma.prize.create({
       data: {
         id: prizeId,
-        name: body.name,
-        description: body.description,
+        name: body.name.trim(),
+        description: body.description.trim(),
         cost: body.cost,
-        icon: body.icon,
-        category: body.category,
+        icon: body.icon.trim(),
+        categoryId: body.categoryId,
+      },
+      include: {
+        category: true,
       },
     })
 
@@ -87,14 +102,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         message: "Prize created successfully",
-        prize,
+        data: prize,
       },
       { status: 201 }
     )
   } catch (error) {
     console.error("[prizes POST] Error:", error)
+    console.error("[prizes POST] Error message:", error instanceof Error ? error.message : String(error))
+    console.error("[prizes POST] Stack:", error instanceof Error ? error.stack : "No stack available")
     return NextResponse.json(
-      { error: "Failed to create prize" },
+      { 
+        error: "Failed to create prize",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     )
   }
@@ -105,7 +125,7 @@ export async function POST(request: NextRequest) {
  * List all prizes
  *
  * Query parameters:
- * - category?: string (filter by category: internet, academic, cafeteria)
+ * - categoryId?: string (filter by category ID)
  * - limit?: number (default: 100, max: 100)
  * - offset?: number (default: 0)
  */
@@ -113,14 +133,14 @@ export async function GET(request: NextRequest) {
   try {
     // Get query parameters
     const { searchParams } = new URL(request.url)
-    const category = searchParams.get("category")
+    const categoryId = searchParams.get("categoryId")
     const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 100)
     const offset = parseInt(searchParams.get("offset") || "0")
 
     // Build where clause
     const where: any = {}
-    if (category) {
-      where.category = category
+    if (categoryId) {
+      where.categoryId = categoryId
     }
 
     // Get total count
@@ -129,6 +149,9 @@ export async function GET(request: NextRequest) {
     // Get prizes with pagination
     const prizes = await prisma.prize.findMany({
       where,
+      include: {
+        category: true,
+      },
       take: limit,
       skip: offset,
       orderBy: {
@@ -152,8 +175,12 @@ export async function GET(request: NextRequest) {
     )
   } catch (error) {
     console.error("[prizes GET] Error:", error)
+    console.error("[prizes GET] Error details:", error instanceof Error ? error.message : String(error))
     return NextResponse.json(
-      { error: "Failed to fetch prizes" },
+      { 
+        error: "Failed to fetch prizes",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     )
   }

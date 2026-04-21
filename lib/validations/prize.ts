@@ -2,18 +2,12 @@
  * Validation schemas and helper functions for Prize operations
  */
 
-export enum PrizeCategoryEnum {
-  INTERNET = "internet",
-  ACADEMIC = "academic",
-  CAFETERIA = "cafeteria",
-}
-
 export interface CreatePrizeInput {
   name: string
   description: string
   cost: number
   icon: string
-  category: PrizeCategoryEnum | string
+  categoryId: string
 }
 
 export interface UpdatePrizeInput {
@@ -21,7 +15,7 @@ export interface UpdatePrizeInput {
   description?: string
   cost?: number
   icon?: string
-  category?: PrizeCategoryEnum | string
+  categoryId?: string
 }
 
 export interface PrizeResponse {
@@ -30,15 +24,15 @@ export interface PrizeResponse {
   description: string
   cost: number
   icon: string
-  category: string
+  categoryId: string
 }
 
 /**
- * Validate prize category
+ * Validate category ID (must be non-empty string)
  */
-export function validatePrizeCategory(category?: string): boolean {
-  if (!category) return false
-  return Object.values(PrizeCategoryEnum).includes(category as PrizeCategoryEnum)
+export function validateCategoryId(categoryId?: string): boolean {
+  if (!categoryId) return false
+  return typeof categoryId === "string" && categoryId.trim().length > 0
 }
 
 /**
@@ -46,7 +40,7 @@ export function validatePrizeCategory(category?: string): boolean {
  */
 export function validatePrizeCost(cost?: number): boolean {
   if (cost === undefined) return false
-  return typeof cost === "number" && cost > 0
+  return typeof cost === "number" && cost > 0 && Number.isInteger(cost)
 }
 
 /**
@@ -54,7 +48,7 @@ export function validatePrizeCost(cost?: number): boolean {
  */
 export function validatePrizeName(name?: string): boolean {
   if (!name) return false
-  return typeof name === "string" && name.trim().length > 0
+  return typeof name === "string" && name.trim().length > 0 && name.trim().length <= 100
 }
 
 /**
@@ -62,7 +56,7 @@ export function validatePrizeName(name?: string): boolean {
  */
 export function validatePrizeDescription(description?: string): boolean {
   if (!description) return false
-  return typeof description === "string" && description.trim().length > 0
+  return typeof description === "string" && description.trim().length > 0 && description.trim().length <= 500
 }
 
 /**
@@ -81,27 +75,27 @@ export function validateCreatePrizeInput(data: any): { valid: boolean; errors: s
 
   // Name validation
   if (!validatePrizeName(data.name)) {
-    errors.push("name is required and must be a non-empty string")
+    errors.push("name is required and must be a non-empty string (max 100 characters)")
   }
 
   // Description validation
   if (!validatePrizeDescription(data.description)) {
-    errors.push("description is required and must be a non-empty string")
+    errors.push("description is required and must be a non-empty string (max 500 characters)")
   }
 
   // Cost validation
   if (!validatePrizeCost(data.cost)) {
-    errors.push("cost is required and must be a positive number")
+    errors.push("cost is required and must be a positive integer")
   }
 
   // Icon validation
   if (!validatePrizeIcon(data.icon)) {
-    errors.push("icon is required and must be a non-empty string")
+    errors.push("icon is required and must be a non-empty string (lucide-react icon name)")
   }
 
-  // Category validation
-  if (!validatePrizeCategory(data.category)) {
-    errors.push(`category is required and must be one of: ${Object.values(PrizeCategoryEnum).join(", ")}`)
+  // Category ID validation
+  if (!validateCategoryId(data.categoryId)) {
+    errors.push("categoryId is required and must be a valid category")
   }
 
   return {
@@ -118,27 +112,27 @@ export function validateUpdatePrizeInput(data: any): { valid: boolean; errors: s
 
   // Name validation (optional)
   if (data.name !== undefined && !validatePrizeName(data.name)) {
-    errors.push("name must be a non-empty string")
+    errors.push("name must be a non-empty string (max 100 characters)")
   }
 
   // Description validation (optional)
   if (data.description !== undefined && !validatePrizeDescription(data.description)) {
-    errors.push("description must be a non-empty string")
+    errors.push("description must be a non-empty string (max 500 characters)")
   }
 
   // Cost validation (optional)
   if (data.cost !== undefined && !validatePrizeCost(data.cost)) {
-    errors.push("cost must be a positive number")
+    errors.push("cost must be a positive integer")
   }
 
   // Icon validation (optional)
   if (data.icon !== undefined && !validatePrizeIcon(data.icon)) {
-    errors.push("icon must be a non-empty string")
+    errors.push("icon must be a non-empty string (lucide-react icon name)")
   }
 
-  // Category validation (optional)
-  if (data.category !== undefined && !validatePrizeCategory(data.category)) {
-    errors.push(`category must be one of: ${Object.values(PrizeCategoryEnum).join(", ")}`)
+  // Category ID validation (optional)
+  if (data.categoryId !== undefined && !validateCategoryId(data.categoryId)) {
+    errors.push("categoryId must be a valid category")
   }
 
   return {

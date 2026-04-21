@@ -50,6 +50,9 @@ import {
   LogOut,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import PrizeManager from "@/components/prize-manager"
+import CategoryManager from "@/components/category-manager"
+import RedeemPrizes from "./redeem-prizes"
 
 interface Prize {
   id: string
@@ -306,7 +309,7 @@ export default function DashboardClient({
           {/* Page title */}
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-foreground text-balance">
-              {isAdminToggle ? "Panel de Control" : "Mi Progreso Ecologico"}
+              {isAdminToggle ? "Panel de Control Admin" : "Mi Progreso Ecologico"}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {isAdminToggle
@@ -645,6 +648,16 @@ export default function DashboardClient({
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Prize Management - Admin Only */}
+                <div className="mt-6">
+                  <PrizeManager />
+                </div>
+
+                {/* Category Management - Admin Only */}
+                <div className="mt-6">
+                  <CategoryManager />
+                </div>
               </div>
             </>
           ) : (
@@ -786,61 +799,18 @@ export default function DashboardClient({
 
               {/* Prizes Section */}
               <div className="mt-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Trophy className="h-5 w-5 text-primary" />
-                      Canjear Premios
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                      {prizes.map((prize) => {
-                        const canAfford = student.ecoPoints >= prize.cost
-                        return (
-                          <div
-                            key={prize.id}
-                            className={`flex items-center gap-3 rounded-xl border p-4 transition-all ${
-                              canAfford
-                                ? "hover:border-primary/40 hover:shadow-sm"
-                                : "opacity-60"
-                            }`}
-                          >
-                            <div
-                              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${getCategoryColor(prize.category)}`}
-                            >
-                              {getPrizeIcon(prize.icon)}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-foreground truncate">
-                                {prize.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {prize.description}
-                              </p>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant={canAfford ? "default" : "outline"}
-                              disabled={!canAfford}
-                              className={
-                                canAfford
-                                  ? "bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
-                                  : "shrink-0"
-                              }
-                            >
-                              {prize.cost}
-                            </Button>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
+                <RedeemPrizes 
+                  studentEcoPoints={student.ecoPoints} 
+                  onRedeem={(prize) => {
+                    console.log("Premio canjeado:", prize.name);
+                    // Aquí podrías agregar lógica para actualizar los puntos en el servidor
+                  }}
+                />
               </div>
-            </>
-          )}
-        </div>
+
+              </>
+            )}
+         </div>
       </main>
     </div>
   )

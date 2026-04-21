@@ -9,10 +9,10 @@ import { NextRequest, NextResponse } from "next/server"
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
 
     const trashPoint = await prisma.trashPoint.findUnique({
       where: { id },
@@ -57,7 +57,7 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify user is admin
@@ -77,7 +77,7 @@ export async function PATCH(
       )
     }
 
-    const { id } = params
+    const { id } = await params
 
     // Check if trash point exists
     const trashPoint = await prisma.trashPoint.findUnique({
@@ -204,7 +204,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify user is admin
@@ -224,7 +224,7 @@ export async function DELETE(
       )
     }
 
-    const { id } = params
+    const { id } = await params
 
     // Check if trash point exists
     const trashPoint = await prisma.trashPoint.findUnique({

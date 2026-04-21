@@ -1,11 +1,11 @@
 import { getSession } from "@/lib/dal"
 import { prisma } from "@/lib/prisma"
-import { validateUpdatePrizeInput } from "@/lib/validations/prize"
+import { validateUpdateCategoryInput } from "@/lib/validations/category"
 import { NextRequest, NextResponse } from "next/server"
 
 /**
- * GET /api/prizes/[id]
- * Get a specific prize by ID
+ * GET /api/categories/[id]
+ * Get a specific category by ID
  */
 export async function GET(
   request: NextRequest,
@@ -16,39 +16,41 @@ export async function GET(
 
     if (!id) {
       return NextResponse.json(
-        { error: "Prize ID is required" },
+        { error: "Category ID is required" },
         { status: 400 }
       )
     }
 
-    const prize = await prisma.prize.findUnique({
+    const category = await prisma.prizeCategory.findUnique({
       where: { id },
       include: {
-        category: true,
-      },
+        _count: {
+          select: { prizes: true }
+        }
+      }
     })
 
-    if (!prize) {
+    if (!category) {
       return NextResponse.json(
-        { error: "Prize not found" },
+        { error: "Category not found" },
         { status: 404 }
       )
     }
 
-    console.log(`[prizes GET] Retrieved prize: ${prize.id}`)
+    console.log(`[categories GET by ID] Retrieved category: ${category.id}`)
 
     return NextResponse.json(
       {
-        data: prize,
+        data: category,
       },
       { status: 200 }
     )
   } catch (error) {
-    console.error("[prizes GET] Error:", error)
-    console.error("[prizes GET] Error details:", error instanceof Error ? error.message : String(error))
+    console.error("[categories GET by ID] Error:", error)
+    console.error("[categories GET by ID] Error details:", error instanceof Error ? error.message : String(error))
     return NextResponse.json(
       { 
-        error: "Failed to fetch prize",
+        error: "Failed to fetch category",
         details: error instanceof Error ? error.message : "Unknown error"
       },
       { status: 500 }
@@ -57,16 +59,14 @@ export async function GET(
 }
 
 /**
- * PUT /api/prizes/[id]
- * Update a specific prize (Admin only)
+ * PUT /api/categories/[id]
+ * Update a specific category (Admin only)
  *
  * Request body:
  * {
  *   "name"?: string,
  *   "description"?: string,
- *   "cost"?: number,
- *   "icon"?: string,
- *   "categoryId"?: string
+ *   "color"?: string (hex color code)
  * }
  */
 export async function PUT(
@@ -95,19 +95,19 @@ export async function PUT(
 
     if (!id) {
       return NextResponse.json(
-        { error: "Prize ID is required" },
+        { error: "Category ID is required" },
         { status: 400 }
       )
     }
 
-    // Check if prize exists
-    const existingPrize = await prisma.prize.findUnique({
+    // Check if category exists
+    const existingCategory = await prisma.prizeCategory.findUnique({
       where: { id },
     })
 
-    if (!existingPrize) {
+    if (!existingCategory) {
       return NextResponse.json(
-        { error: "Prize not found" },
+        { error: "Category not found" },
         { status: 404 }
       )
     }
@@ -115,12 +115,9 @@ export async function PUT(
     // Parse request body
     const body = await request.json().catch(() => ({}))
 
-    console.log("[prizes PUT] Request body:", JSON.stringify(body))
-
     // Validate input
-    const validation = validateUpdatePrizeInput(body)
+    const validation = validateUpdateCategoryInput(body)
     if (!validation.valid) {
-      console.error("[prizes PUT] Validation errors:", validation.errors)
       return NextResponse.json(
         {
           error: "Invalid input",
@@ -130,66 +127,50 @@ export async function PUT(
       )
     }
 
-    // If categoryId is being updated, verify it exists
-    if (body.categoryId) {
-      const category = await prisma.prizeCategory.findUnique({
-        where: { id: body.categoryId },
-      })
-
-      if (!category) {
-        console.error("[prizes PUT] Category not found:", body.categoryId)
-        return NextResponse.json(
-          { error: "La categoría especificada no existe" },
-          { status: 404 }
-        )
-      }
-    }
-
     // Check if new name already exists (if name is being updated)
-    if (body.name && body.name !== existingPrize.name) {
-      const existingByName = await prisma.prize.findUnique({
-        where: { name: body.name },
+    if (body.name && body.name.trim() !== existingCategory.name) {
+      const existingByName = await prisma.prizeCategory.findUnique({
+        where: { name: body.name.trim() },
       })
 
       if (existingByName) {
-        console.error("[prizes PUT] Prize with same name already exists:", body.name)
         return NextResponse.json(
-          { error: "Ya existe un premio con este nombre" },
+          { error: "Ya existe una categoría con este nombre" },
           { status: 409 }
         )
       }
     }
 
-    // Update prize
-    const updatedPrize = await prisma.prize.update({
+    // Update category
+    const updatedCategory = await prisma.prizeCategory.update({
       where: { id },
       data: {
         ...(body.name !== undefined && { name: body.name.trim() }),
-        ...(body.description !== undefined && { description: body.description.trim() }),
-        ...(body.cost !== undefined && { cost: body.cost }),
-        ...(body.icon !== undefined && { icon: body.icon.trim() }),
-        ...(body.categoryId !== undefined && { categoryId: body.categoryId }),
+        ...(body.description !== undefined && { description: body.description.trim() || null }),
+        ...(body.color !== undefined && { color: body.color.trim() }),
       },
       include: {
-        category: true,
-      },
+        _count: {
+          select: { prizes: true }
+        }
+      }
     })
 
-    console.log(`[prizes PUT] Updated prize: ${updatedPrize.id}`)
+    console.log(`[categories PUT] Updated category: ${updatedCategory.id}`)
 
     return NextResponse.json(
       {
-        message: "Prize updated successfully",
-        data: updatedPrize,
+        message: "Category updated successfully",
+        data: updatedCategory,
       },
       { status: 200 }
     )
   } catch (error) {
-    console.error("[prizes PUT] Error:", error)
-    console.error("[prizes PUT] Error details:", error instanceof Error ? error.message : String(error))
+    console.error("[categories PUT] Error:", error)
+    console.error("[categories PUT] Error details:", error instanceof Error ? error.message : String(error))
     return NextResponse.json(
       { 
-        error: "Failed to update prize",
+        error: "Failed to update category",
         details: error instanceof Error ? error.message : "Unknown error"
       },
       { status: 500 }
@@ -198,8 +179,10 @@ export async function PUT(
 }
 
 /**
- * DELETE /api/prizes/[id]
- * Delete a specific prize (Admin only)
+ * DELETE /api/categories/[id]
+ * Delete a specific category (Admin only)
+ * 
+ * Note: Cannot delete if category has prizes associated with it
  */
 export async function DELETE(
   request: NextRequest,
@@ -227,42 +210,56 @@ export async function DELETE(
 
     if (!id) {
       return NextResponse.json(
-        { error: "Prize ID is required" },
+        { error: "Category ID is required" },
         { status: 400 }
       )
     }
 
-    // Check if prize exists
-    const existingPrize = await prisma.prize.findUnique({
+    // Check if category exists
+    const existingCategory = await prisma.prizeCategory.findUnique({
       where: { id },
+      include: {
+        _count: {
+          select: { prizes: true }
+        }
+      }
     })
 
-    if (!existingPrize) {
+    if (!existingCategory) {
       return NextResponse.json(
-        { error: "Prize not found" },
+        { error: "Category not found" },
         { status: 404 }
       )
     }
 
-    // Delete prize
-    await prisma.prize.delete({
+    // Check if category has prizes
+    if (existingCategory._count.prizes > 0) {
+      return NextResponse.json(
+        { 
+          error: "Cannot delete category with associated prizes",
+          details: `Esta categoría tiene ${existingCategory._count.prizes} premio(s) asociado(s). Elimine los premios primero.`
+        },
+        { status: 409 }
+      )
+    }
+
+    // Delete category
+    await prisma.prizeCategory.delete({
       where: { id },
     })
 
-    console.log(`[prizes DELETE] Deleted prize: ${id}`)
+    console.log(`[categories DELETE] Deleted category: ${id}`)
 
     return NextResponse.json(
-      {
-        message: "Prize deleted successfully",
-      },
+      { message: "Category deleted successfully" },
       { status: 200 }
     )
   } catch (error) {
-    console.error("[prizes DELETE] Error:", error)
-    console.error("[prizes DELETE] Error details:", error instanceof Error ? error.message : String(error))
+    console.error("[categories DELETE] Error:", error)
+    console.error("[categories DELETE] Error details:", error instanceof Error ? error.message : String(error))
     return NextResponse.json(
       { 
-        error: "Failed to delete prize",
+        error: "Failed to delete category",
         details: error instanceof Error ? error.message : "Unknown error"
       },
       { status: 500 }
