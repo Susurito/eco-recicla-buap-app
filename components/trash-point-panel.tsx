@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { X, MapPin, AlertTriangle, CheckCircle, Edit2, Trash2 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
+import * as tmImage from "@teachablemachine/image"
 
 interface TrashPointPanelProps {
   point: TrashPoint
@@ -26,15 +27,99 @@ export default function TrashPointPanel({
 }: TrashPointPanelProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [classified, setClassified] = useState(false)
+  const [classificationResult, setClassificationResult] = useState<{
+    type: "correct" | "incorrect"
+    message: string
+  } | null>(null)
+  const [model, setModel] = useState<any>(null)
+  const [capturedImage, setCapturedImage] = useState<string | null>(null)
+  const [aiPrediction, setAiPrediction] = useState<any>(null)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [modelAvailable, setModelAvailable] = useState(true)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Cargar modelo al montar el componente
+  useEffect(() => {
+    const loadModel = async () => {
+      try {
+        const modelURL = "/modelo/model.json"
+        const metadataURL = "/modelo/metadata.json"
+        const loadedModel = await tmImage.load(modelURL, metadataURL)
+        setModel(loadedModel)
+      } catch (error) {
+        console.error("Error cargando modelo:", error)
+        setModelAvailable(false)
+      }
+    }
+    loadModel()
+  }, [])
+
+  // Normalizar texto para comparación
+  const normalizeText = (text: string): string => {
+    return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  }
+
+  // Manejar subida de imagen
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !model) return
+
+    const imageUrl = URL.createObjectURL(file)
+    setCapturedImage(imageUrl)
+    setAiPrediction(null)
+    setAnalyzing(true)
+
+    // Predecir con el modelo
+    const img = document.createElement("img")
+    img.src = imageUrl
+
+    await new Promise((resolve) => (img.onload = resolve))
+
+    try {
+      const predictions = await model.predict(img)
+      const best = predictions.reduce((a: any, b: any) =>
+        a.probability > b.probability ? a : b
+      )
+      setAiPrediction(best)
+    } catch (error) {
+      console.error("Error prediciendo imagen:", error)
+      setAiPrediction(null)
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
+  // Abrir selector de archivo
+  const handleOpenCamera = () => {
+    fileInputRef.current?.click()
+  }
 
   const handleConfirm = () => {
-    if (!selectedCategory) return
-    onClassify(point.id, selectedCategory)
-    setClassified(true)
+    if (!selectedCategory || !capturedImage || !aiPrediction) return
+
+    // Comparar predicción del modelo con selección del usuario
+    const modelClass = normalizeText(aiPrediction.className)
+    const userSelection = normalizeText(CATEGORY_LABELS[selectedCategory])
+
+    if (modelClass === userSelection) {
+      // Clasificación correcta
+      onClassify(point.id, selectedCategory)
+      setClassificationResult({
+        type: "correct",
+        message: `✅ Clasificación correcta: '${CATEGORY_LABELS[selectedCategory]}'`,
+      })
+    } else {
+      // Clasificación incorrecta
+      setClassificationResult({
+        type: "incorrect",
+        message: `❌ Clasificación incorrecta. Era: '${aiPrediction.className}'`,
+      })
+    }
+
+    // Cerrar panel después de 2500ms
     setTimeout(() => {
-      setClassified(false)
-      setSelectedCategory(null)
-    }, 2000)
+      onClose()
+    }, 2500)
   }
 
   return (
@@ -100,12 +185,56 @@ export default function TrashPointPanel({
           {/* Detected object */}
           <div className="rounded-lg border bg-muted/50 p-3">
             <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Objeto detectado
+              Estado de detección del objeto
             </p>
-            <p className="text-sm font-semibold text-foreground">
-              {point.detectedObject}
+            <p
+              className={`text-sm font-semibold ${
+                !capturedImage
+                  ? "text-muted-foreground"
+                  : aiPrediction && !analyzing
+                    ? "text-green-600"
+                    : "text-muted-foreground"
+              }`}
+            >
+              {!capturedImage
+                ? "Sin detección del objeto"
+                : aiPrediction && !analyzing
+                  ? "✅ El objeto se analizó correctamente"
+                  : "Sin detección del objeto"}
             </p>
           </div>
+
+          {/* Botón para tomar/subir foto (solo estudiantes) */}
+          {!isAdmin && (
+            <div className="flex flex-col gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <Button
+                onClick={handleOpenCamera}
+                variant="outline"
+                className="w-full gap-2"
+              >
+                📷 Tomar / Subir foto
+              </Button>
+
+              {/* Mostrar imagen subida */}
+              {capturedImage && (
+                <div className="flex flex-col items-center gap-2 rounded-lg bg-muted/30 p-3">
+                  <img
+                    src={capturedImage}
+                    alt="Imagen subida"
+                    className="max-w-[200px] h-auto rounded-lg border"
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Classification for students */}
           {!isAdmin && (
@@ -147,17 +276,37 @@ export default function TrashPointPanel({
                 ))}
               </div>
 
-              {classified ? (
-                <div className="flex items-center justify-center gap-2 rounded-lg bg-primary/10 p-3 text-primary">
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    +10 Eco-Points ganados
-                  </span>
-                </div>
+              {classificationResult ? (
+                <>
+                  <div
+                    className={`flex items-center justify-center gap-2 rounded-lg p-3 ${
+                      classificationResult.type === "correct"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    <span className="text-sm font-medium">
+                      {classificationResult.message}
+                    </span>
+                  </div>
+                  {classificationResult.type === "correct" && (
+                    <div className="flex items-center justify-center gap-2 rounded-lg bg-primary/10 p-3 text-primary">
+                      <CheckCircle className="h-4 w-4" />
+                      <span className="text-sm font-medium">
+                        +10 Eco-Points ganados
+                      </span>
+                    </div>
+                  )}
+                </>
               ) : (
                 <Button
                   onClick={handleConfirm}
-                  disabled={!selectedCategory}
+                  disabled={
+                    !selectedCategory ||
+                    !capturedImage ||
+                    !aiPrediction ||
+                    analyzing
+                  }
                   className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   Confirmar Clasificacion
