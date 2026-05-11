@@ -5,7 +5,7 @@ export interface TrashPoint {
   lng: number
   detectedObject: string
   detectedImage: string
-  category: "plastico" | "papel" | "organico" | "general" | null
+  category: "plastico" | "papel" | "organico" | "general" | "carton" | "vidrio" | "metal" | "basura" | null
   fillLevel: number
   lastCollected: string
   alert: string | null
@@ -14,6 +14,10 @@ export interface TrashPoint {
     papel: number
     organico: number
     general: number
+    carton: number
+    vidrio: number
+    metal: number
+    basura: number
   }
 }
 
@@ -42,6 +46,10 @@ export const CATEGORY_COLORS: Record<string, string> = {
   papel: "#3b82f6",
   organico: "#10b981",
   general: "#6b7280",
+  carton: "#d97706",
+  vidrio: "#06b6d4",
+  metal: "#8b5cf6",
+  basura: "#ec4899",
 }
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -49,4 +57,8 @@ export const CATEGORY_LABELS: Record<string, string> = {
   papel: "Papel",
   organico: "Organico",
   general: "General",
+  carton: "Carton",
+  vidrio: "Vidrio",
+  metal: "Metal",
+  basura: "Basura",
 }
