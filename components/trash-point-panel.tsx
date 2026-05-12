@@ -31,6 +31,8 @@ export default function TrashPointPanel({
     type: "correct" | "incorrect"
     message: string
   } | null>(null)
+  const [pointsAwarded, setPointsAwarded] = useState(0)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [model, setModel] = useState<any>(null)
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [aiPrediction, setAiPrediction] = useState<any>(null)
@@ -209,24 +211,78 @@ export default function TrashPointPanel({
     const userSelection = normalizeText(CATEGORY_LABELS[selectedCategory])
 
     if (modelClass === userSelection) {
-      // Clasificación correcta
-      onClassify(point.id, selectedCategory)
+      // Clasificación correcta - determinar puntos según categoría
+      const pointsByCategory: Record<string, number> = {
+        papel: 10,
+        plastico: 12,
+        organico: 15,
+        general: 20,
+      }
+      const points = pointsByCategory[selectedCategory] || 10
+      setPointsAwarded(points)
+
       setClassificationResult({
         type: "correct",
         message: `✅ Clasificación correcta: '${CATEGORY_LABELS[selectedCategory]}'`,
       })
     } else {
       // Clasificación incorrecta
+      setPointsAwarded(0)
       setClassificationResult({
         type: "incorrect",
         message: `❌ Clasificación incorrecta. Era: '${aiPrediction.className}'`,
       })
     }
+  }
 
-    // Cerrar panel después de 2500ms
-    setTimeout(() => {
-      onClose()
-    }, 2500)
+  // Enviar clasificación al servidor
+  const handleSubmitClassification = async () => {
+    if (!selectedCategory) return
+
+    setIsSubmitting(true)
+    try {
+      const modelClass = normalizeText(aiPrediction.className)
+      const userSelection = normalizeText(CATEGORY_LABELS[selectedCategory])
+      const isCorrect = modelClass === userSelection
+
+      const response = await fetch("/api/classifications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          category: selectedCategory,
+          isCorrect,
+          predictedAs: aiPrediction.className,
+          selectedAs: CATEGORY_LABELS[selectedCategory],
+          confidence: aiPrediction.probability,
+          trashPointId: point.id,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to save classification")
+      }
+
+      const data = await response.json()
+      console.log("Classification saved:", data)
+
+      // Llamar callback del componente padre con puntos actualizados
+      onClassify(point.id, selectedCategory)
+
+      // Cerrar panel después de 1.5s
+      setTimeout(() => {
+        onClose()
+      }, 1500)
+    } catch (error) {
+      console.error("Error submitting classification:", error)
+      alert(
+        `Error al guardar: ${error instanceof Error ? error.message : "Unknown error"}`
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -445,42 +501,49 @@ export default function TrashPointPanel({
                 ))}
               </div>
 
-              {classificationResult ? (
-                <>
-                  <div
-                    className={`flex items-center justify-center gap-2 rounded-lg p-3 ${
-                      classificationResult.type === "correct"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    <span className="text-sm font-medium">
-                      {classificationResult.message}
-                    </span>
-                  </div>
-                  {classificationResult.type === "correct" && (
-                    <div className="flex items-center justify-center gap-2 rounded-lg bg-primary/10 p-3 text-primary">
-                      <CheckCircle className="h-4 w-4" />
-                      <span className="text-sm font-medium">
-                        +10 Eco-Points ganados
-                      </span>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <Button
-                  onClick={handleConfirm}
-                  disabled={
-                    !selectedCategory ||
-                    !capturedImage ||
-                    !aiPrediction ||
-                    analyzing
-                  }
-                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  Confirmar Clasificacion
-                </Button>
-              )}
+               {classificationResult ? (
+                 <>
+                   <div
+                     className={`flex items-center justify-center gap-2 rounded-lg p-3 ${
+                       classificationResult.type === "correct"
+                         ? "bg-green-100 text-green-700"
+                         : "bg-red-100 text-red-700"
+                     }`}
+                   >
+                     <span className="text-sm font-medium">
+                       {classificationResult.message}
+                     </span>
+                   </div>
+                   {classificationResult.type === "correct" && (
+                     <div className="flex items-center justify-center gap-2 rounded-lg bg-primary/10 p-3 text-primary">
+                       <CheckCircle className="h-4 w-4" />
+                       <span className="text-sm font-medium">
+                         +{pointsAwarded} Eco-Points
+                       </span>
+                     </div>
+                   )}
+                   <Button
+                     onClick={handleSubmitClassification}
+                     disabled={isSubmitting}
+                     className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                   >
+                     {isSubmitting ? "Enviando..." : "Enviar Clasificación"}
+                   </Button>
+                 </>
+               ) : (
+                 <Button
+                   onClick={handleConfirm}
+                   disabled={
+                     !selectedCategory ||
+                     !capturedImage ||
+                     !aiPrediction ||
+                     analyzing
+                   }
+                   className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                 >
+                   Confirmar Clasificacion
+                 </Button>
+               )}
             </div>
           )}
 

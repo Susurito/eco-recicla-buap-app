@@ -83,6 +83,10 @@ model Student {
   classifications Int    @default(0)
   level           String @default("Principiante")
 
+  classifications_records ClassificationRecord[]
+  eco_point_transactions  EcoPointTransaction[]
+  prize_redemptions       PrizeRedemption[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -97,10 +101,74 @@ model Prize {
   categoryId String
   category   PrizeCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   
+  redemptions PrizeRedemption[]
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   @@index([categoryId])
+}
+
+model ClassificationRecord {
+  id            String @id @default(cuid())
+  studentId     String
+  student       Student @relation(fields: [studentId], references: [boleta], onDelete: Cascade)
+  
+  category      Category
+  isCorrect     Boolean
+  predictedAs   String?
+  selectedAs    String?
+  confidence    Float? // AI model confidence score
+  
+  trashPointId  String?
+  
+  createdAt DateTime @default(now())
+  
+  @@index([studentId])
+  @@index([createdAt])
+}
+
+model EcoPointTransaction {
+  id          String @id @default(cuid())
+  studentId   String
+  student     Student @relation(fields: [studentId], references: [boleta], onDelete: Cascade)
+  
+  type        String // "classification", "redemption", "admin_adjustment"
+  amount      Int    // Can be negative for redemptions
+  source      String? // classification_id, redemption_id, admin_reason
+  
+  balanceBefore Int
+  balanceAfter  Int
+  
+  createdAt DateTime @default(now())
+  
+  @@index([studentId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model PrizeRedemption {
+  id          String @id @default(cuid())
+  studentId   String
+  student     Student @relation(fields: [studentId], references: [boleta], onDelete: Cascade)
+  
+  prizeId     String
+  prize       Prize @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+  
+  qrCode      String @unique // Generated unique code
+  qrImageUrl  String? // Data URL or file path to generated QR image
+  
+  status      String @default("active") // active, claimed, expired
+  
+  expiresAt   DateTime // Fixed 24 hours from creation
+  claimedAt   DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([studentId])
+  @@index([status])
+  @@index([expiresAt])
 }
 
 model PolygonArea {

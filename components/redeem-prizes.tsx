@@ -32,6 +32,18 @@ interface Prize {
 interface RedeemPrizesProps {
   studentEcoPoints: number
   onRedeem?: (prize: Prize) => void
+  onRedemptionSuccess?: () => void
+}
+
+interface RedemptionData {
+  redemptionId: string
+  prizeId: string
+  prizeName: string
+  qrCode: string
+  qrImageUrl: string
+  redemptionCode: string
+  expiresAt: string
+  ecoPointsRemaining: number
 }
 
 /**
@@ -60,12 +72,16 @@ function renderLucideIcon(iconName: string, className: string = "h-5 w-5") {
 export default function RedeemPrizes({
   studentEcoPoints,
   onRedeem,
+  onRedemptionSuccess,
 }: RedeemPrizesProps) {
   const [qrDialog, setQrDialog] = useState(false)
   const [selectedPrize, setSelectedPrize] = useState<Prize | null>(null)
   const [prizes, setPrizes] = useState<Prize[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isRedeeming, setIsRedeeming] = useState(false)
+  const [redemptionData, setRedemptionData] = useState<RedemptionData | null>(null)
+  const [currentEcoPoints, setCurrentEcoPoints] = useState(studentEcoPoints)
 
   // Fetch prizes from API
   useEffect(() => {
@@ -90,12 +106,63 @@ export default function RedeemPrizes({
     fetchPrizes()
   }, [])
 
-  const handleRedeem = (prize: Prize) => {
-    if (studentEcoPoints >= prize.cost) {
+  // Update current eco points when prop changes
+  useEffect(() => {
+    setCurrentEcoPoints(studentEcoPoints)
+  }, [studentEcoPoints])
+
+  const handleRedeemClick = (prize: Prize) => {
+    if (currentEcoPoints >= prize.cost) {
       setSelectedPrize(prize)
+      // Show confirmation dialog before redeeming
       setQrDialog(true)
-      onRedeem?.(prize)
     }
+  }
+
+  const handleConfirmRedemption = async () => {
+    if (!selectedPrize) return
+
+    setIsRedeeming(true)
+    try {
+      const response = await fetch("/api/students/me/redeem", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prizeId: selectedPrize.id,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(
+          errorData.error || "Failed to redeem prize"
+        )
+      }
+
+      const data = await response.json()
+      setRedemptionData(data.data)
+      setCurrentEcoPoints(data.data.ecoPointsRemaining)
+      onRedeem?.(selectedPrize)
+      onRedemptionSuccess?.()
+
+      console.log("Prize redeemed successfully:", data)
+    } catch (err) {
+      console.error("Error redeeming prize:", err)
+      alert(
+        `Error al canjear: ${err instanceof Error ? err.message : "Unknown error"}`
+      )
+      setQrDialog(false)
+    } finally {
+      setIsRedeeming(false)
+    }
+  }
+
+  const handleCloseDialog = () => {
+    setQrDialog(false)
+    setSelectedPrize(null)
+    setRedemptionData(null)
   }
 
   return (
@@ -145,18 +212,18 @@ export default function RedeemPrizes({
                       </p>
                     </div>
                     <Button
-                      size="sm"
-                      variant={canAfford ? "default" : "outline"}
-                      disabled={!canAfford}
-                      onClick={() => handleRedeem(prize)}
-                      className={
-                        canAfford
-                          ? "bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
-                          : "shrink-0"
-                      }
-                    >
-                      {prize.cost} pts
-                    </Button>
+                       size="sm"
+                       variant={canAfford ? "default" : "outline"}
+                       disabled={!canAfford}
+                       onClick={() => handleRedeemClick(prize)}
+                       className={
+                         canAfford
+                           ? "bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
+                           : "shrink-0"
+                       }
+                     >
+                       {prize.cost} pts
+                     </Button>
                   </CardContent>
                 </Card>
               )
@@ -166,12 +233,16 @@ export default function RedeemPrizes({
       </div>
 
       {/* QR Code Dialog */}
-      <Dialog open={qrDialog} onOpenChange={setQrDialog}>
+      <Dialog open={qrDialog} onOpenChange={handleCloseDialog}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-center">Premio Canjeado</DialogTitle>
+            <DialogTitle className="text-center">
+              {redemptionData ? "Premio Canjeado" : "Confirmar Canje"}
+            </DialogTitle>
             <DialogDescription className="text-center">
-              Muestra este codigo QR para reclamar tu premio
+              {redemptionData
+                ? "Muestra este código QR para reclamar tu premio"
+                : "¿Deseas canjear este premio?"}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-4">
@@ -183,18 +254,89 @@ export default function RedeemPrizes({
                 <p className="text-lg font-semibold text-foreground">
                   {selectedPrize.name}
                 </p>
-                {/* Simulated QR Code */}
-                <div className="flex h-48 w-48 items-center justify-center rounded-xl border-2 border-dashed border-primary/30 bg-muted/50">
-                  <div className="flex flex-col items-center gap-2">
-                    <QrCode className="h-20 w-20 text-foreground" />
-                    <span className="text-xs text-muted-foreground">
-                      QR-{selectedPrize.id}-{Date.now().toString(36)}
-                    </span>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground text-center">
-                  Valido por 24 horas desde el momento del canje
-                </p>
+
+                {!redemptionData ? (
+                  // Confirmation view
+                  <>
+                    <p className="text-sm text-muted-foreground text-center">
+                      Costo: <span className="font-semibold">{selectedPrize.cost} eco points</span>
+                    </p>
+                    <p className="text-sm text-muted-foreground text-center">
+                      Tendrás:{" "}
+                      <span className="font-semibold text-primary">
+                        {currentEcoPoints - selectedPrize.cost}
+                      </span>{" "}
+                      eco points restantes
+                    </p>
+                    <div className="flex gap-2 w-full">
+                      <Button
+                        variant="outline"
+                        onClick={handleCloseDialog}
+                        className="flex-1"
+                        disabled={isRedeeming}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        onClick={handleConfirmRedemption}
+                        disabled={isRedeeming}
+                        className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                      >
+                        {isRedeeming ? "Canjeando..." : "Confirmar Canje"}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  // QR view
+                  <>
+                    {/* QR Code Image */}
+                    <div className="flex h-48 w-48 items-center justify-center rounded-xl border-2 bg-white p-2">
+                      {redemptionData.qrImageUrl ? (
+                        <img
+                          src={redemptionData.qrImageUrl}
+                          alt="QR Code"
+                          className="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <QrCode className="h-20 w-20 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            Cargando QR...
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Redemption Code */}
+                    <div className="w-full">
+                      <p className="text-xs font-medium text-muted-foreground text-center mb-1">
+                        Código de canje
+                      </p>
+                      <p className="font-mono text-sm font-bold text-center bg-muted p-2 rounded">
+                        {redemptionData.redemptionCode}
+                      </p>
+                    </div>
+
+                    {/* Expiration Info */}
+                    <p className="text-xs text-muted-foreground text-center">
+                      ⏱️ Válido por 24 horas desde el momento del canje
+                    </p>
+
+                    {/* Screenshot reminder */}
+                    <div className="w-full bg-blue-100 border border-blue-300 rounded p-2">
+                      <p className="text-xs text-blue-900 text-center">
+                        📸 Toma una captura de pantalla de este código para poder presentarlo
+                      </p>
+                    </div>
+
+                    <Button
+                      onClick={handleCloseDialog}
+                      className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      Cerrar
+                    </Button>
+                  </>
+                )}
               </>
             )}
           </div>
