@@ -1,8 +1,8 @@
 "use client"
 
 import { type TrashPoint, CATEGORY_COLORS, CATEGORY_LABELS } from "@/lib/data"
+import { trashFillMarkerHtml } from "@/lib/trash-marker-html"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { X, MapPin, AlertTriangle, CheckCircle, Edit2, Trash2 } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
@@ -11,7 +11,15 @@ import * as tmImage from "@teachablemachine/image"
 interface TrashPointPanelProps {
   point: TrashPoint
   onClose: () => void
-  onClassify: (pointId: string, category: string) => void
+  onClassify: (payload: {
+    pointId: string
+    category: string
+    pointsAwarded: number
+    studentEcoPoints: number
+    studentClassifications: number
+    studentLevel: string
+    trashPointFillLevel?: number
+  }) => void
   isAdmin: boolean
   onEdit?: (point: TrashPoint) => void
   onDelete?: (point: TrashPoint) => void
@@ -33,6 +41,9 @@ export default function TrashPointPanel({
   } | null>(null)
   const [pointsAwarded, setPointsAwarded] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  /** Tras pulsar "Enviar clasificación", no se puede cambiar categoría hasta cerrar el panel o elegir otro punto. */
+  const [selectionLocked, setSelectionLocked] = useState(false)
+  const [lastSubmitFailed, setLastSubmitFailed] = useState(false)
   const [model, setModel] = useState<any>(null)
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [aiPrediction, setAiPrediction] = useState<any>(null)
@@ -66,6 +77,11 @@ export default function TrashPointPanel({
       }
     }
   }, [])
+
+  useEffect(() => {
+    setSelectionLocked(false)
+    setLastSubmitFailed(false)
+  }, [point.id])
 
   // Normalizar texto para comparación
   const normalizeText = (text: string): string => {
@@ -217,6 +233,10 @@ export default function TrashPointPanel({
         plastico: 12,
         organico: 15,
         general: 20,
+        carton: 11,
+        vidrio: 18,
+        metal: 25,
+        basura: 5,
       }
       const points = pointsByCategory[selectedCategory] || 10
       setPointsAwarded(points)
@@ -239,6 +259,8 @@ export default function TrashPointPanel({
   const handleSubmitClassification = async () => {
     if (!selectedCategory) return
 
+    setSelectionLocked(true)
+    setLastSubmitFailed(false)
     setIsSubmitting(true)
     try {
       const modelClass = normalizeText(aiPrediction.className)
@@ -268,8 +290,16 @@ export default function TrashPointPanel({
       const data = await response.json()
       console.log("Classification saved:", data)
 
-      // Llamar callback del componente padre con puntos actualizados
-      onClassify(point.id, selectedCategory)
+      const d = data.data
+      onClassify({
+        pointId: point.id,
+        category: selectedCategory,
+        pointsAwarded: d.pointsAwarded ?? 0,
+        studentEcoPoints: d.studentEcoPoints,
+        studentClassifications: d.studentClassifications,
+        studentLevel: d.studentLevel,
+        trashPointFillLevel: d.trashPointFillLevel,
+      })
 
       // Cerrar panel después de 1.5s
       setTimeout(() => {
@@ -277,6 +307,7 @@ export default function TrashPointPanel({
       }, 1500)
     } catch (error) {
       console.error("Error submitting classification:", error)
+      setLastSubmitFailed(true)
       alert(
         `Error al guardar: ${error instanceof Error ? error.message : "Unknown error"}`
       )
@@ -292,19 +323,16 @@ export default function TrashPointPanel({
         <div className="h-40 w-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2">
             <div
-              className="flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold"
-              style={{
-                backgroundColor:
-                  point.fillLevel > 80
-                    ? "#ef4444"
-                    : point.fillLevel > 50
-                      ? "#eab308"
-                      : "#10b981",
-                color: "white",
+              className="flex items-center justify-center"
+              dangerouslySetInnerHTML={{
+                __html: trashFillMarkerHtml(
+                  point.fillLevel,
+                  point.alert,
+                  false,
+                  76
+                ),
               }}
-            >
-              {point.fillLevel}%
-            </div>
+            />
             <span className="text-xs text-muted-foreground">
               Nivel de llenado
             </span>
@@ -467,12 +495,20 @@ export default function TrashPointPanel({
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Clasificar residuo
               </p>
+              {selectionLocked && lastSubmitFailed && (
+                <p className="text-xs text-muted-foreground">
+                  La categoría quedó fijada al enviar. Cierra el panel para volver al mapa y
+                  empezar de nuevo.
+                </p>
+              )}
                <div className="grid grid-cols-2 gap-2">
                  {Object.keys(CATEGORY_LABELS).map((cat) => (
                   <button
                     key={cat}
+                    type="button"
+                    disabled={selectionLocked || isSubmitting}
                     onClick={() => setSelectedCategory(cat)}
-                    className={`flex items-center gap-2 rounded-lg border-2 p-3 text-left text-sm font-medium transition-all ${
+                    className={`flex items-center gap-2 rounded-lg border-2 p-3 text-left text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 ${
                       selectedCategory === cat
                         ? "border-current shadow-sm"
                         : "border-transparent bg-muted/50 hover:bg-muted"

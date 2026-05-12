@@ -8,39 +8,16 @@ import {
   BUAP_CENTER,
   BUAP_ZOOM,
 } from "@/lib/data"
+import { trashFillMarkerHtml } from "@/lib/trash-marker-html"
 
-// Corregido: Ahora acepta el estado 'isSelected' para el feedback visual
 function createTrashIcon(fillLevel: number, alert: string | null, isSelected: boolean) {
-  const color =
-    alert || fillLevel > 80
-      ? "#ef4444"
-      : fillLevel > 50
-        ? "#eab308"
-        : "#10b981"
-
-  // Estilos de feedback visual: Glow azul y escala
-  const shadow = isSelected 
-    ? "box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5), 0 4px 15px rgba(0,0,0,0.5);" 
-    : "box-shadow: 0 2px 8px rgba(0,0,0,0.3);"
+  const html = trashFillMarkerHtml(fillLevel, alert, isSelected, 40)
 
   return L.divIcon({
     className: "custom-trash-marker",
-    html: `
-      <div style="
-        width: 36px; height: 36px; border-radius: 50%;
-        background: ${color}; border: 3px solid white;
-        ${shadow}
-        display: flex; align-items: center; justify-content: center;
-        color: white; font-weight: bold; font-size: 11px;
-        cursor: pointer; 
-        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        transform: ${isSelected ? 'scale(1.3)' : 'scale(1)'};
-      ">
-        ${fillLevel}%
-      </div>
-    `,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
+    html,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
   })
 }
 

@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "TodayStats" ADD COLUMN     "basura" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "carton" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "metal" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "vidrio" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "passwordHash" TEXT;

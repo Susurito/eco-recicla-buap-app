@@ -17,6 +17,10 @@ enum Category {
   papel
   organico
   general
+  carton
+  vidrio
+  metal
+  basura
 }
 
 model PrizeCategory {
@@ -55,6 +59,10 @@ model TodayStats {
   papel      Int
   organico   Int
   general    Int
+  carton     Int    @default(0)
+  vidrio     Int    @default(0)
+  metal      Int    @default(0)
+  basura     Int    @default(0)
 
   trashPoint   TrashPoint @relation(fields: [trashPointId], references: [id], onDelete: Cascade)
   trashPointId String     @unique
@@ -196,6 +204,7 @@ model User {
   email         String          @unique
   emailVerified DateTime?
   image         String?
+  passwordHash  String?
   role          String          @default("student") // "student" or "admin"
   accounts      Account[]
   sessions      Session[]

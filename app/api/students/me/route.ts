@@ -1,42 +1,33 @@
 import { getSession } from "@/lib/dal"
+import {
+  nextEcoPointsMilestone,
+  progressPercentWithinTier,
+} from "@/lib/eco-levels"
 import { prisma } from "@/lib/prisma"
+import {
+  consecutiveCorrectDaysStreak,
+  datesWithCorrectClassifications,
+} from "@/lib/streak"
 import { NextRequest, NextResponse } from "next/server"
 
 /**
  * GET /api/students/me
- * Retrieves the current authenticated user's student profile
+ * Perfil de estudiante, ranking y racha de días con clasificación correcta.
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Verify user is authenticated
     const session = await getSession()
-    
-    // Check authentication
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
-    }
-    
-    // Check student role (optional - for now allow all authenticated users)
-    // if (session.role !== "student") {
-    //   return NextResponse.json(
-    //     { error: "Forbidden: Students only" },
-    //     { status: 403 }
-    //   )
-    // }
 
-    // Get student profile
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     let student = await prisma.student.findFirst({
       where: { userId: session.user.id },
     })
 
-    // If student profile doesn't exist, create one
     if (!student) {
-      // Generate a default boleta (student ID) from timestamp
       const boleta = `EST${Date.now()}`
-
       student = await prisma.student.create({
         data: {
           boleta,
@@ -48,6 +39,27 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    const totalStudents = await prisma.student.count()
+
+    const rank =
+      1 +
+      (await prisma.student.count({
+        where: { ecoPoints: { gt: student.ecoPoints } },
+      }))
+
+    const correctDates = await prisma.classificationRecord.findMany({
+      where: { studentId: student.boleta, isCorrect: true },
+      select: { createdAt: true },
+    })
+
+    const activityDates = datesWithCorrectClassifications(
+      correctDates.map((r) => r.createdAt)
+    )
+    const consecutiveDays = consecutiveCorrectDaysStreak(activityDates)
+
+    const nextMilestone = nextEcoPointsMilestone(student.ecoPoints)
+    const tierProgress = progressPercentWithinTier(student.ecoPoints)
+
     return NextResponse.json(
       {
         student: {
@@ -57,6 +69,17 @@ export async function GET(request: NextRequest) {
           level: student.level,
           createdAt: student.createdAt,
           updatedAt: student.updatedAt,
+        },
+        ranking: {
+          position: rank,
+          totalStudents,
+        },
+        streak: {
+          consecutiveCorrectDays: consecutiveDays,
+        },
+        levelProgress: {
+          nextMilestoneEcoPoints: nextMilestone,
+          percentTowardNextMilestone: tierProgress,
         },
         user: {
           id: session.user.id,
@@ -79,31 +102,18 @@ export async function GET(request: NextRequest) {
 /**
  * PATCH /api/students/me
  * Updates the current authenticated user's student profile
- *
- * Request body:
- * {
- *   "ecoPoints"?: number,        // Add eco points
- *   "classifications"?: number,  // Add classifications
- *   "level"?: string             // Update level
- * }
  */
 export async function PATCH(request: NextRequest) {
   try {
-    // Verify user is authenticated
     const session = await getSession()
-    
+
     if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Parse request body
     const body = await request.json().catch(() => ({}))
     const { ecoPoints, classifications, level } = body
 
-    // Validate input
     if (ecoPoints !== undefined && (typeof ecoPoints !== "number" || ecoPoints < 0)) {
       return NextResponse.json(
         { error: "ecoPoints must be a non-negative number" },
@@ -122,26 +132,18 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (level !== undefined && typeof level !== "string") {
-      return NextResponse.json(
-        { error: "level must be a string" },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "level must be a string" }, { status: 400 })
     }
 
-    // Get student profile
     const student = await prisma.student.findFirst({
       where: { userId: session.user.id },
     })
 
     if (!student) {
-      return NextResponse.json(
-        { error: "Student profile not found" },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: "Student profile not found" }, { status: 404 })
     }
 
-    // Prepare update data
-    const updateData: any = {}
+    const updateData: Record<string, unknown> = {}
 
     if (ecoPoints !== undefined) {
       updateData.ecoPoints = ecoPoints
@@ -155,7 +157,6 @@ export async function PATCH(request: NextRequest) {
       updateData.level = level
     }
 
-    // Update student profile
     const updatedStudent = await prisma.student.update({
       where: { boleta: student.boleta },
       data: updateData,

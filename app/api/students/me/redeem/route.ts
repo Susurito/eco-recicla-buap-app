@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
     // Start transaction: Create redemption + deduct points
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create redemption record
-      const redemption = await tx.prizeRedemption.create({
+      const redemption = await (tx as any).prizeRedemption.create({
         data: {
           studentId: student.boleta,
           prizeId: prize.id,
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
       // 2. Create eco point transaction record
       const newBalance = student.ecoPoints - prize.cost
-      const transaction = await tx.ecoPointTransaction.create({
+      const transaction = await (tx as any).ecoPointTransaction.create({
         data: {
           studentId: student.boleta,
           type: "redemption",
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
       })
 
       // 3. Update student eco points
-      const updatedStudent = await tx.student.update({
+      const updatedStudent = await (tx as any).student.update({
         where: { boleta: student.boleta },
         data: {
           ecoPoints: newBalance,

@@ -11,6 +11,7 @@ import {
   BUAP_CENTER,
   BUAP_ZOOM,
 } from "@/lib/data"
+import { normalizeTodayStats } from "@/lib/normalize-today-stats"
 import { useSession } from "@/lib/session-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -204,7 +205,7 @@ export default function EcoReciclaBUAP() {
                fillLevel: point.fillLevel || 0,
                lastCollected: point.lastCollected,
                alert: point.alert || null,
-               todayStats: point.todayStats || { plastico: 0, papel: 0, organico: 0, general: 0 },
+               todayStats: normalizeTodayStats(point.todayStats),
              }
            })
            
@@ -260,6 +261,7 @@ export default function EcoReciclaBUAP() {
   const handlePointClick = useCallback((point: TrashPoint) => {
     setSelectedPoint(point)
     setSidebarOpen(true)
+    setMobileMenuOpen(true)
   }, [])
 
   const handleClosePanel = useCallback(() => {
@@ -267,26 +269,65 @@ export default function EcoReciclaBUAP() {
   }, [])
 
   const handleClassify = useCallback(
-    (pointId: string, category: string) => {
+    (payload: {
+      pointId: string
+      category: string
+      pointsAwarded: number
+      studentEcoPoints: number
+      studentClassifications: number
+      studentLevel: string
+      trashPointFillLevel?: number
+    }) => {
       setTrashPoints((prev) =>
         prev.map((p) =>
-          p.id === pointId
+          p.id === payload.pointId
             ? {
                 ...p,
-                category: category as TrashPoint["category"],
-                todayStats: {
-                  ...p.todayStats,
-                  [category]:
-                    p.todayStats[category as keyof typeof p.todayStats] + 1,
-                },
+                category: payload.category as TrashPoint["category"],
+                fillLevel:
+                  payload.trashPointFillLevel != null
+                    ? payload.trashPointFillLevel
+                    : p.fillLevel,
+                todayStats:
+                  payload.pointsAwarded > 0
+                    ? {
+                        ...p.todayStats,
+                        [payload.category]:
+                          p.todayStats[
+                            payload.category as keyof typeof p.todayStats
+                          ] + 1,
+                      }
+                    : p.todayStats,
               }
             : p
         )
       )
+      setSelectedPoint((cur) =>
+        cur && cur.id === payload.pointId
+          ? {
+              ...cur,
+              fillLevel:
+                payload.trashPointFillLevel != null
+                  ? payload.trashPointFillLevel
+                  : cur.fillLevel,
+              todayStats:
+                payload.pointsAwarded > 0
+                  ? {
+                      ...cur.todayStats,
+                      [payload.category]:
+                        cur.todayStats[
+                          payload.category as keyof typeof cur.todayStats
+                        ] + 1,
+                    }
+                  : cur.todayStats,
+            }
+          : cur
+      )
       setStudent((prev) => ({
         ...prev,
-        ecoPoints: prev.ecoPoints + 10,
-        classifications: prev.classifications + 1,
+        ecoPoints: payload.studentEcoPoints,
+        classifications: payload.studentClassifications,
+        level: payload.studentLevel,
       }))
     },
     []
@@ -364,7 +405,7 @@ export default function EcoReciclaBUAP() {
                fillLevel: point.fillLevel || 0,
                lastCollected: point.lastCollected,
                alert: point.alert || null,
-               todayStats: point.todayStats || { plastico: 0, papel: 0, organico: 0, general: 0 },
+               todayStats: normalizeTodayStats(point.todayStats),
              }
            })
            setTrashPoints(mappedPoints)
@@ -673,7 +714,7 @@ export default function EcoReciclaBUAP() {
   return (
     <div className="flex h-dvh w-full overflow-visible">
       {/* Mobile header */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between border-b bg-card px-4 md:hidden">
+      <header className="fixed top-0 left-0 right-0 z-[10060] flex h-14 items-center justify-between border-b bg-card px-4 md:hidden">
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -703,7 +744,9 @@ export default function EcoReciclaBUAP() {
 
       {/* Sidebar panel */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-card shadow-xl transition-all duration-300 ease-in-out md:relative ${
+        className={`fixed inset-y-0 left-0 flex flex-col bg-card shadow-xl transition-all duration-300 ease-in-out md:relative md:z-auto ${
+          mobileMenuOpen ? "z-[10050]" : "z-40"
+        } ${
           sidebarOpen ? "w-[380px]" : "w-0 overflow-hidden"
         } ${
           mobileMenuOpen
@@ -1009,9 +1052,10 @@ export default function EcoReciclaBUAP() {
 
       {/* Desktop sidebar toggle button - hamburger menu */}
       <button
+        type="button"
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className={`fixed z-[999] top-4 left-4 items-center justify-center h-10 w-10 bg-card border border-border rounded-lg shadow-md transition-all duration-300 ease-in-out hover:bg-muted cursor-pointer ${
-          sidebarOpen ? "hidden md:flex" : "md:flex flex"
+        className={`fixed z-[10055] top-4 left-4 hidden h-10 w-10 items-center justify-center rounded-lg border border-border bg-card shadow-md transition-all duration-300 ease-in-out hover:bg-muted cursor-pointer md:flex ${
+          sidebarOpen ? "md:hidden" : ""
         }`}
         aria-label={
           sidebarOpen ? "Colapsar panel lateral" : "Expandir panel lateral"
@@ -1025,7 +1069,7 @@ export default function EcoReciclaBUAP() {
       </button>
 
       {/* Map area */}
-      <main className="relative flex-1 pt-14 md:pt-0">
+      <main className="relative z-0 flex-1 pt-14 md:pt-0">
         {/* Floating Eco-Points badge on map - student desktop */}
         {!isAdmin && (
           <div className="absolute top-4 left-4 z-30 hidden md:flex">
@@ -1081,7 +1125,7 @@ export default function EcoReciclaBUAP() {
       {/* Mobile overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-30 bg-foreground/20 md:hidden"
+          className="fixed inset-0 z-[10040] bg-foreground/20 md:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}

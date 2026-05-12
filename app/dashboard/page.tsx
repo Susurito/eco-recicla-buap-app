@@ -18,7 +18,6 @@ export default async function DashboardPage() {
   return (
     <DashboardClient 
       isAdmin={isAdmin} 
-      userId={session.user.id}
       userName={session.user.name || "Usuario"}
       userImage={session.user.image}
     />

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import {
   type TrashPoint,
@@ -138,14 +138,12 @@ function getCategoryColor(category: string) {
   }
 }
 
-export default function DashboardClient({ 
-  isAdmin, 
-  userId,
+export default function DashboardClient({
+  isAdmin,
   userName,
-  userImage
-}: { 
+  userImage,
+}: {
   isAdmin: boolean
-  userId: string
   userName: string
   userImage?: string | null
 }) {
@@ -163,10 +161,43 @@ export default function DashboardClient({
   ])
   const [loading, setLoading] = useState(true)
 
-  // Crear objeto student desde props
-  const student = {
-    boleta: userId || "",
-    name: userName || "Usuario",
+  type StudentMeResponse = {
+    student: {
+      boleta: string
+      ecoPoints: number
+      classifications: number
+      level: string
+    }
+    ranking?: { position: number; totalStudents: number }
+    streak?: { consecutiveCorrectDays: number }
+    levelProgress?: {
+      nextMilestoneEcoPoints: number
+      percentTowardNextMilestone: number
+    }
+  }
+
+  const [me, setMe] = useState<StudentMeResponse | null>(null)
+
+  const refreshStudentProfile = useCallback(async () => {
+    if (isAdminToggle) return
+    try {
+      const r = await fetch("/api/students/me", { cache: "no-store" })
+      if (!r.ok) return
+      setMe(await r.json())
+    } catch (e) {
+      console.error("[dashboard] students/me", e)
+    }
+  }, [isAdminToggle])
+
+  useEffect(() => {
+    if (isAdminToggle) return
+    void refreshStudentProfile()
+    const id = setInterval(() => void refreshStudentProfile(), 20000)
+    return () => clearInterval(id)
+  }, [isAdminToggle, refreshStudentProfile])
+
+  const student = me?.student ?? {
+    boleta: "",
     ecoPoints: 0,
     classifications: 0,
     level: "Principiante",
@@ -216,15 +247,20 @@ export default function DashboardClient({
   }, [isAdmin])
 
   // Aggregate stats
-  const totalCollected = trashPoints.reduce(
-    (acc, p) =>
+  const totalCollected = trashPoints.reduce((acc, p) => {
+    const s = p.todayStats
+    return (
       acc +
-      p.todayStats.plastico +
-      p.todayStats.papel +
-      p.todayStats.organico +
-      p.todayStats.general,
-    0
-  )
+      s.plastico +
+      s.papel +
+      s.organico +
+      s.general +
+      (s.carton ?? 0) +
+      (s.vidrio ?? 0) +
+      (s.metal ?? 0) +
+      (s.basura ?? 0)
+    )
+  }, 0)
   const avgFill =
     trashPoints.reduce((acc, p) => acc + p.fillLevel, 0) / trashPoints.length
   const alertCount = trashPoints.filter((p) => p.alert).length
@@ -260,8 +296,8 @@ export default function DashboardClient({
     fill: d.fill,
   }))
 
-  const nextLevel = 2000
-  const progress = (student.ecoPoints / nextLevel) * 100
+  const nextLevel = me?.levelProgress?.nextMilestoneEcoPoints ?? 2000
+  const progress = me?.levelProgress?.percentTowardNextMilestone ?? 0
 
   return (
     <div className="flex h-dvh flex-col bg-background">
@@ -726,13 +762,13 @@ export default function DashboardClient({
                                <div className="flex items-center justify-between mb-3">
                                  <span className="text-white/80 text-xs font-medium">Progreso hacia siguiente nivel</span>
                                  <span className="text-white/80 text-xs font-medium">
-                                   {Math.round((student.ecoPoints / nextLevel) * 100)}%
+                                   {Math.round(progress)}%
                                  </span>
                                </div>
                                <Progress value={progress} className="h-4" />
                                <div className="mt-2 flex items-center justify-between text-xs text-white/70">
                                  <span>Actual: {student.ecoPoints} pts</span>
-                                 <span>Meta: {nextLevel} pts</span>
+                                 <span>Meta: {nextLevel} pts (cada 2000)</span>
                                </div>
                              </div>
                            </div>
@@ -769,11 +805,16 @@ export default function DashboardClient({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-4xl font-bold text-amber-600 leading-none">
-                          #12
+                          {me?.ranking ? `#${me.ranking.position}` : "—"}
                         </p>
-                        <p className="mt-2 text-sm text-muted-foreground font-medium">
-                          Ranking general
-                        </p>
+                        <div className="mt-2 text-sm text-muted-foreground font-medium">
+                          <span>Ranking general</span>
+                          {me?.ranking && (
+                            <span className="mt-0.5 block text-xs text-muted-foreground/90">
+                              de {me.ranking.totalStudents} estudiantes
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -786,7 +827,7 @@ export default function DashboardClient({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-4xl font-bold text-sky-600 leading-none">
-                          14
+                          {me?.streak?.consecutiveCorrectDays ?? 0}
                         </p>
                         <p className="mt-2 text-sm text-muted-foreground font-medium">
                           Días consecutivos
@@ -799,11 +840,11 @@ export default function DashboardClient({
 
               {/* Prizes Section */}
               <div className="mt-6">
-                <RedeemPrizes 
-                  studentEcoPoints={student.ecoPoints} 
+                <RedeemPrizes
+                  studentEcoPoints={student.ecoPoints}
+                  onRedemptionSuccess={() => void refreshStudentProfile()}
                   onRedeem={(prize) => {
-                    console.log("Premio canjeado:", prize.name);
-                    // Aquí podrías agregar lógica para actualizar los puntos en el servidor
+                    console.log("Premio canjeado:", prize.name)
                   }}
                 />
               </div>

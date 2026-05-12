@@ -1,0 +1,1 @@
+SELECT "boleta", "ecoPoints", "classifications" FROM "Student" WHERE "boleta" = 'TEST001';
