@@ -52,6 +52,7 @@ import {
 import { useRouter } from "next/navigation"
 import PrizeManager from "@/components/prize-manager"
 import CategoryManager from "@/components/category-manager"
+import { UserAvatar } from "@/components/user-avatar"
 import RedeemPrizes from "./redeem-prizes"
 
 interface Prize {
@@ -713,16 +714,16 @@ export default function DashboardClient({
                        <div className="relative z-10 flex flex-col h-full p-8">
                          {/* Top section */}
                          <div className="flex items-center gap-4 mb-8">
-                           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/20 overflow-hidden border-3 border-white/30 backdrop-blur-sm flex-shrink-0">
-                             {userImage ? (
-                               <img 
-                                 src={userImage} 
-                                 alt={userName}
-                                 className="h-full w-full object-cover"
-                               />
-                             ) : (
-                               <Leaf className="h-10 w-10 text-white" />
-                             )}
+                           <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/30 bg-white/20 backdrop-blur-sm">
+                             <UserAvatar
+                               name={userName}
+                               image={userImage}
+                               size={80}
+                               className={
+                                 userImage ? "h-full w-full min-h-0 min-w-0" : undefined
+                               }
+                               fallbackClassName="bg-white/25 text-white border-2 border-white/40"
+                             />
                            </div>
                            <div className="flex-1 min-w-0">
                              <h2 className="text-3xl font-bold leading-tight">{userName}</h2>

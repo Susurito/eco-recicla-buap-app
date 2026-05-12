@@ -1,6 +1,5 @@
 "use client"
 
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -19,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { useState } from "react"
 import { signIn } from "next-auth/react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
@@ -28,7 +27,6 @@ export function LoginFormContent() {
   const [error, setError] = useState<string | null>(null)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard"
 
@@ -59,14 +57,14 @@ export function LoginFormContent() {
         redirect: false,
       })
 
-      if (res?.error) {
+      if (!res || res.error || res.ok === false) {
         setError("Correo o contraseña incorrectos.")
         setIsLoading(false)
         return
       }
 
-      router.push(callbackUrl)
-      router.refresh()
+      setIsLoading(false)
+      window.location.assign(callbackUrl)
     } catch (err) {
       console.error(err)
       setError("No se pudo iniciar sesión.")

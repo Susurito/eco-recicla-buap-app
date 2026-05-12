@@ -25,7 +25,6 @@ export function RegisterFormContent() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [boleta, setBoleta] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -41,7 +40,6 @@ export function RegisterFormContent() {
           name: name.trim(),
           email: email.trim(),
           password,
-          boleta: boleta.trim() || undefined,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -107,18 +105,6 @@ export function RegisterFormContent() {
                   autoComplete="new-password"
                   placeholder="Mínimo 6 caracteres"
                 />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="reg-boleta">Boleta (opcional)</FieldLabel>
-                <Input
-                  id="reg-boleta"
-                  value={boleta}
-                  onChange={(e) => setBoleta(e.target.value)}
-                  placeholder="Si la omites, se asignará una automática"
-                />
-                <FieldDescription className="text-xs">
-                  Debe ser única en el sistema si la proporcionas.
-                </FieldDescription>
               </Field>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Creando cuenta..." : "Registrarme"}

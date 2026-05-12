@@ -3,7 +3,7 @@ import Google from "next-auth/providers/google"
 import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
-import bcrypt from "bcryptjs"
+import { verifyCredentialsUser } from "@/lib/credentials-user"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -28,11 +28,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           typeof credentials?.password === "string" ? credentials.password : ""
         if (!email || !password) return null
 
-        const user = await prisma.user.findUnique({ where: { email } })
-        if (!user?.passwordHash) return null
-
-        const ok = await bcrypt.compare(password, user.passwordHash)
-        if (!ok) return null
+        const user = await verifyCredentialsUser(email, password)
+        if (!user) return null
 
         return {
           id: user.id,

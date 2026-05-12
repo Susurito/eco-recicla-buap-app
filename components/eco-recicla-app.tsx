@@ -26,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import TrashPointPanel from "@/components/trash-point-panel"
+import { UserAvatar } from "@/components/user-avatar"
 import TrashPointModal from "@/components/trash-point-modal"
 import PolygonPanel from "@/components/polygon-panel"
 import PolygonModal from "@/components/polygon-modal"
@@ -780,17 +781,12 @@ export default function EcoReciclaBUAP() {
             {/* User profile section */}
             {studentData_local ? (
               <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
-                  {studentData_local.image ? (
-                    <img
-                      src={studentData_local.image}
-                      alt={studentData_local.name}
-                      className="h-10 w-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <User className="h-5 w-5" />
-                  )}
-                </div>
+                <UserAvatar
+                  name={studentData_local.name}
+                  email={studentData_local.email}
+                  image={studentData_local.image}
+                  size={40}
+                />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">
                     {studentData_local.name}
